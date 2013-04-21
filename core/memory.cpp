@@ -1,7 +1,7 @@
 
 #include "../global.h"
 
-#define MEMORY_SIZE	10000h
+#define MEMORY_SIZE	0x10000
 
 BYTE mem[MEMORY_SIZE];
 
