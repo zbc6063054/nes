@@ -1,4 +1,4 @@
 nes
 ===
 
-an nes emulator
+nes emulator written in c++
