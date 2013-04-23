@@ -24,7 +24,7 @@ int cpu_init(){
 	cpu.reg_y = (u8)0;
 	
 	cpu.reg_s = (u8)0xff;							//points to the top of stack
-	cpu.reg_pc = (u16)0;
+	cpu.reg_pc = (u16)0x8000;
 	cpu.reg_flag = (u8)0;
 	return 0;
 }
@@ -52,7 +52,7 @@ u16 op_read_word(){
 	cpu.reg_pc += 2;
 	return word;
 }
-
+//	stack 
 void push_byte(u8 byte){
 	mem_write_byte(STACK_ADDR(cpu.reg_s), byte);
 	--cpu.reg_s;
@@ -73,9 +73,19 @@ u8 pop_byte(){
 	return mem_read_byte(STACK_ADDR(cpu.reg_s));
 }
 
+// cpu
 void cpu_run(){
 	//get next code
 	u8 opcode = op_read_byte();
+	exec(opcode);
+}
+
+void cpu_dump(){
+	printf("A=%02X X=%02X Y=%02X  S=%02X PC=%04X\n", 
+		cpu.reg_a,cpu.reg_x,cpu.reg_y,cpu.reg_s,cpu.reg_pc);
+	printf("C:%d Z:%d I:%d D:%d B:%d V:%d N:%d\n", 
+			get_flag(FLAG_C), get_flag(FLAG_Z), get_flag(FLAG_I),
+			get_flag(FLAG_D), get_flag(FLAG_B), get_flag(FLAG_V), get_flag(FLAG_N));
 }
 
 int exec(u8 opcode){
@@ -756,7 +766,8 @@ int exec(u8 opcode){
 		break;
 
 	default:
-		printf("error: unknow operation codes:%02X", opcode);
+		printf("error: unknow operation codes:%02X \n", opcode);
+		return -1;
 		break;
 	}
 	return 0;

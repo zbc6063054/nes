@@ -23,16 +23,21 @@ void mem_write_word(u16 addr, u16 word){
 	*(u16 *)(mem + (u32)addr) = word;
 }
 
-
-void mem_dump(u16 addr){
-	printf("*********************** memory dump *****************\n");
-	printf("%04X:", addr);
-	for(u16 i=0; i<16; ++i){
-		printf("%02X", mem_read_byte(addr+i));
-		if(i == 7)
+void mem_dump(u16 addr_start, u16 addr_end){
+	printf("%04X: ", addr_start);
+	for(u16 i=0; i < addr_end-addr_start; ++i){
+		printf("%02X", mem_read_byte(addr_start+i));
+		if((i+1)%16 == 0 && (i+1)!=addr_end-addr_start){
+			printf("\n%04X:", addr_start+i+1);
+		}
+		if((i+1)%16 == 7)
 			printf("~");
 		else
 			printf(" ");
 	}
 	printf("\n");
+}
+
+void mem_dump(u16 addr){
+	mem_dump(addr, addr + 0x40);
 }

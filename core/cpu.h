@@ -25,7 +25,8 @@ u16 pop_word();
 
 int cpu_init();
 void cpu_run();
-int exec();
+int exec(u8);
+void cpu_dump();
 
 void op_LDA(u8);
 void op_LDX(u8);
