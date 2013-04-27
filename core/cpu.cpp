@@ -38,6 +38,7 @@ void set_flag(u8 type, bool val){
 		cpu.reg_flag &= ~(u8)(1<<type);
 	}
 }
+
 inline bool get_flag(u8 type){
 	return ((cpu.reg_flag >> type) & 1) > 0;
 }
@@ -583,6 +584,9 @@ int exec(u8 opcode){
 	case 0xF8:
 		op_SED();
 		break;
+	case 0x78:
+		op_SEI();
+		break;
 	case 0x18:
 		op_CLC();
 		break;
@@ -591,6 +595,9 @@ int exec(u8 opcode){
 		break;
 	case 0xB8:
 		op_CLV();
+		break;
+	case 0x58:
+		op_CLI();
 		break;
 
 	/****************** AND ********************/
@@ -777,12 +784,18 @@ int exec(u8 opcode){
 
 inline void op_LDA(u8 byte){
 	cpu.reg_a = byte;
+	SET_FLAG_N(byte);
+	SET_FLAG_Z(byte);
 }
 inline void op_LDX(u8 byte){
 	cpu.reg_x = byte;
+	SET_FLAG_N(byte);
+	SET_FLAG_Z(byte);
 }
 inline void op_LDY(u8 byte){
 	cpu.reg_y = byte;
+	SET_FLAG_N(byte);
+	SET_FLAG_Z(byte);
 }
 
 inline void op_STA(u16 addr){
@@ -829,6 +842,8 @@ inline void op_PHA(){
 }
 inline void op_PLA(){
 	cpu.reg_a = pop_byte();
+	SET_FLAG_N(cpu.reg_a);
+	SET_FLAG_Z(cpu.reg_a);
 }
 inline void op_PHP(){
 	push_byte(cpu.reg_flag);
@@ -945,6 +960,9 @@ void op_SEC(){
 void op_SED(){
 	set_flag(FLAG_D,true);
 }
+void op_SEI(){
+	set_flag(FLAG_I,true);
+}
 void op_CLC(){
 	set_flag(FLAG_C,false);
 }
@@ -954,7 +972,9 @@ void op_CLD(){
 void op_CLV(){
 	set_flag(FLAG_V,false);
 }
-
+void op_CLI(){
+	set_flag(FLAG_I,false);
+}
 void op_AND(u8 byte){
 	cpu.reg_a &= byte;
 	SET_FLAG_N(cpu.reg_a);

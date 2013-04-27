@@ -4,6 +4,7 @@
 #include "../global.h"
 #include "memory.h"
 #include "cpu.h"
+#include "file.h"
 
 #define CMD_SIZE 20
 
@@ -29,11 +30,19 @@ void stack_test(){
 	pop_byte();
 	printf("%x stack:%x\n", 5, pop_byte());
 }
+
+void file_test(){
+	file_header header;
+//	file_get_head("../MARIO.NES", header);
+	printf("prg_num:%d chr_num:%d\n", header.rom_prg_num, header.rom_chr_num);
+}
+
 int test(){
 	printf("test start!\n");
 	cpu_init();
 	mem_test();
 	stack_test();
+	file_test();
 }
 
 char * str_trim(char* str){
@@ -119,6 +128,19 @@ void dbg_next_code(char argv[][CMD_SIZE], int len){
 	mem_dump(cpu.reg_pc, cpu.reg_pc + 0x10);
 }
 
+void dbg_open_file(char argv[][CMD_SIZE], int len){
+	if(len == 1){
+		printf("error:please specify file name\n");
+		return;
+	}
+	int res = 0;
+	res = file_load(argv[1]);
+	if(res != 0){
+		printf("error:load file \"%s\" error!\n", argv[1]);
+		return;
+	}
+}
+
 struct struct_cmd{
 	char argc[10];
 	cmd_func func;
@@ -126,7 +148,8 @@ struct struct_cmd{
 	"a", dbg_op_input,
 	"d", dbg_dump_mem,
 	"r", dbg_read_state,
-	"t", dbg_next_code
+	"t", dbg_next_code,
+	"f", dbg_open_file
 };
 
 int debug(){
@@ -158,6 +181,7 @@ int debug(){
 }
 
 int main(){
+//	test();
 	debug();
 	return 0;
 }
