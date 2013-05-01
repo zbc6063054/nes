@@ -2,14 +2,18 @@
 
 #define STACK_ADDR(x) (0x100|(u16)(x))
 
+
 struct struct_cpu {
 	u8 reg_a;						//register a
 	u8 reg_x;						//register b
 	u8 reg_y;						//register c
 	u8 reg_s;
 
-	u16 reg_pc;						//register pc
 	u8 reg_flag;					//flag
+	bool isNMI;
+	bool isIRQ;
+	bool isRuning;
+	u16 reg_pc;						//register pc
 };
 
 enum register_type{
@@ -24,7 +28,7 @@ void push_word(u16);
 u16 pop_word();
 
 int cpu_init();
-void cpu_run();
+int cpu_run(int);
 int exec(u8);
 void cpu_dump();
 

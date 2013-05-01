@@ -123,7 +123,7 @@ void dbg_read_state(char argv[][CMD_SIZE], int len){
 }
 
 void dbg_next_code(char argv[][CMD_SIZE], int len){
-	cpu_run();
+	cpu_run(10);
 	cpu_dump();
 	mem_dump(cpu.reg_pc, cpu.reg_pc + 0x10);
 }
@@ -180,7 +180,7 @@ int debug(){
 	return 0;
 }
 
-int main(){
+int main1(){
 //	test();
 	debug();
 	return 0;

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "../global.h"
 
 #include "memory.h"
@@ -16,9 +17,16 @@
 #define SET_FLAG_N(x) (set_flag(FLAG_N, ((x)>>7)&1 > 0))
 #define SET_FLAG_Z(x) (set_flag(FLAG_Z, (x) == 0))
 
+#define ADDR_NMI 	0xFFFA
+#define ADDR_RESET	0xFFFC 
+#define ADDR_IRQ 	0xFFFE
+
 struct struct_cpu cpu;
 
 int cpu_init(){
+
+	memset(&cpu, 0, sizeof(cpu));
+
 	cpu.reg_a = (u8)0;
 	cpu.reg_x = (u8)0;
 	cpu.reg_y = (u8)0;
@@ -74,11 +82,35 @@ u8 pop_byte(){
 	return mem_read_byte(STACK_ADDR(cpu.reg_s));
 }
 
+void setNMI(){
+	cpu.isNMI = true;
+}
+
 // cpu
-void cpu_run(){
+int cpu_run(int cycle_req){
 	//get next code
-	u8 opcode = op_read_byte();
-	exec(opcode);
+	u8 opcode = 0;
+    int cycles = 0;
+	while(cpu.isRuning &&(cycles<cycle_req)){
+		opcode = op_read_byte();
+		cycles += exec(opcode);
+		if(cpu.isNMI){
+			push_word(cpu.reg_pc);
+			push_byte(cpu.reg_flag);
+			set_flag(FLAG_I, true);
+			set_flag(FLAG_B, false);
+			cpu.reg_pc = mem_read_word(ADDR_NMI);
+            cycles += 7;
+		}else if(cpu.isIRQ){
+			push_word(cpu.reg_pc);
+			push_byte(cpu.reg_flag);
+			set_flag(FLAG_I, true);
+			set_flag(FLAG_B, false);
+			cpu.reg_pc = mem_read_word(ADDR_IRQ);
+            cycles += 7;
+		}
+	}
+    return cycles - cycle_req;
 }
 
 void cpu_dump(){
@@ -92,165 +124,207 @@ void cpu_dump(){
 int exec(u8 opcode){
 	u16 addr = 0;
 	u8 val = 0;
+    u8 cycle = 0;
 
 	switch(opcode){
 	case 0xA9:				//LDA imm	
 		op_LDA(op_read_byte());	
+        cycle = 2;
 		break;
 	case 0xA5:				//zero page Addressing
 		op_LDA(mem_read_byte(addr_zero()));
+        cycle = 3;
 		break;
 	case 0xB5:				//zero page x indexed addressing
 		op_LDA(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0xAD:				//absolute addressing
 		op_LDA(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 	case 0xBD:				//absolute x indexed addressing
 		op_LDA(mem_read_byte(
 				addr_abs_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0xB9:				//absolute y indexed addressing
 		op_LDA(mem_read_byte(
 				addr_abs_reg(cpu.reg_y)
 				));
+        cycle = 4;
 		break;
 	case 0xA1:				//x
 		op_LDA(mem_read_byte(
 				addr_ind_x()
 				));
+        cycle = 6;
 		break;
 	case 0xB1:				//y
 		op_LDA(mem_read_byte(
 				addr_ind_y()
 				));
+        cycle = 6;
 		break;
 	/*************LDX************/
 	case 0xA2:				//LDX imm
 		op_LDX(op_read_byte());
+        cycle = 2;
 		break;
 	case 0xA6:				//zero page Addressing
 		op_LDX(mem_read_byte(
 				addr_zero()
 				));
+        cycle = 3;
 		break;
 	case 0xB6:				//zero page y indexed Addressing
 		op_LDX(mem_read_byte(
 				addr_zero_reg(cpu.reg_y)
 				));
+        cycle = 4;
 		break;
 	case 0xAE:				//absolute Addressing
 		op_LDX(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 	case 0xBE:				//absolute y indexed Addressing 
 		op_LDX(mem_read_byte(
 				addr_abs_reg(cpu.reg_y)
 				));
+        cycle = 4;
 		break;
 	/****************LDY************************/		
 	case 0xA0:				//LDY imm
 		op_LDY(op_read_byte());
+        cycle = 2;
 		break;
 	case 0xA4:				//zero page Addressing
 		op_LDY(mem_read_byte(
 				addr_zero()
 				));
+        cycle = 3;
 		break;
 	case 0xB4:				//zero page x indexed Addressing
 		op_LDY(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0xAC:				//absolute Addressing
 		op_LDY(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 	case 0xBC:				//absolute x indexed Addressing 
 		op_LDY(mem_read_byte(
 				addr_abs_reg(cpu.reg_x)
 				));
+        cycle = 5;
 		break;
 	/**************** STA ***************/
 	case 0x85:				//zero page Addressing
 		op_STA(addr_zero());
+        cycle = 3;
 		break;
 	case 0x95:				//zero page x indexed addressing
 		op_STA(addr_zero_reg(cpu.reg_x));
+        cycle = 4;
 		break;
 	case 0x8D:				//absolute addressing
 		op_STA(addr_abs());
+        cycle = 4;
 		break;
 	case 0x9D:				//absolute x indexed addressing
 		op_STA(addr_abs_reg(cpu.reg_x));
+        cycle = 5;
 		break;
 	case 0x99:				//absolute y indexed addressing
 		op_STA(addr_abs_reg(cpu.reg_y));
+        cycle = 5;
 		break;
 	case 0x81:				//x
 		op_STA(addr_ind_x());
+        cycle = 6;
 		break;
 	case 0x91:				//y
 		op_STA(addr_ind_y());
+        cycle = 6;
 		break;
 	/**************** STX ***************/
 	case 0x86:				//zero page Addressing
 		op_STX(addr_zero());
+        cycle = 3;
 		break;
 	case 0x96:				//zero page y indexed addressing
 		op_STX(addr_zero_reg(cpu.reg_y));
+        cycle = 4;
 		break;
 	case 0x8E:				//absolute addressing
 		op_STX(addr_abs());
+        cycle = 4;
 		break;
 	/**************** STY ***************/
 	case 0x84:				//zero page Addressing
 		op_STY(addr_zero());
+        cycle = 3;
 		break;
 	case 0x94:				//zero page x indexed addressing
 		op_STY(addr_zero_reg(cpu.reg_x));
+        cycle = 4;
 		break;
 	case 0x8C:				//absolute addressing
 		op_STY(addr_abs());
+        cycle = 4;
 		break;
 
 	case 0x8A:
 		op_TXA();
+        cycle = 2;
 		break;
 	case 0xAA:
 		op_TAX();
+        cycle = 2;
 		break;
 	case 0x98:
 		op_TYA();
+        cycle = 2;
 		break;
 	case 0xA8:
 		op_TAY();
+        cycle = 2;
 		break;
 	case 0x9A:
 		op_TXS();
+        cycle = 2;
 		break;
 	case 0xBA:
 		op_TSX();
+        cycle = 2;
 		break;
 
 	case 0x48:
 		op_PHA();
+        cycle = 3;
 		break;
 	case 0x68:
 		op_PLA();
+        cycle = 4;
 		break;
 	case 0x08:
 		op_PHP();
+        cycle = 3;
 		break;
 	case 0x28:
 		op_PLP();
+        cycle = 4;
 		break;
 
 	/*************** ASL **************/
@@ -258,30 +332,35 @@ int exec(u8 opcode){
 		val = cpu.reg_a;
 		val = op_ASL(val);
 		mem_write_byte(addr, val);
+        cycle = 2;
 		break;
 	case 0x06:					//zero page Addressing 
 		addr = addr_zero();
 		val = mem_read_byte(addr);
 		val = op_ASL(val);
 		mem_write_byte(addr, val);
+        cycle = 5;
 		break;
 	case 0x16:					//zero page x Indexed Addressing
 		addr = addr_zero_reg(cpu.reg_x);
 		val = mem_read_byte(addr);
 		val = op_ASL(val);
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0x0E:					//absolute Addressing 
 		addr = addr_abs();
 		val = mem_read_byte(addr);
 		val = op_ASL(val);
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0x1E:					//absolute x Indexed Addressing
 		addr = addr_abs_reg(cpu.reg_x);
 		val = mem_read_byte(addr);
 		val = op_ASL(val);
 		mem_write_byte(addr, val);
+        cycle = 7;
 		break;
 
 	/*************** LSR **************/
@@ -289,238 +368,283 @@ int exec(u8 opcode){
 		val = cpu.reg_a;
 		val = op_LSR(val);
 		mem_write_byte(addr, val);
+        cycle = 2;
 		break;
 	case 0x46:					//zero page Addressing 
 		addr = addr_zero();
 		val = mem_read_byte(addr);
 		val = op_LSR(val);
 		mem_write_byte(addr, val);
+        cycle= 5;
 		break;
 	case 0x56:					//zero page x Indexed Addressing
 		addr = addr_zero_reg(cpu.reg_x);
 		val = mem_read_byte(addr);
 		val = op_LSR(val);
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0x4E:					//absolute Addressing 
 		addr = addr_abs();
 		val = mem_read_byte(addr);
 		val = op_LSR(val);
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0x5E:					//absolute x Indexed Addressing
 		addr = addr_abs_reg(cpu.reg_x);
 		val = mem_read_byte(addr);
 		val = op_LSR(val);
 		mem_write_byte(addr, val);
+        cycle = 7;
 		break;
 	/*************** ROL **************/
 	case 0x2A:					//register a Addressing
 		val = cpu.reg_a;
 		val = op_ROL(val);
 		mem_write_byte(addr, val);
+        cycle = 2;
 		break;
 	case 0x26:					//zero page Addressing 
 		addr = addr_zero();
 		val = mem_read_byte(addr);
 		val = op_ROL(val);
 		mem_write_byte(addr, val);
+        cycle = 5;
 		break;
 	case 0x36:					//zero page x Indexed Addressing
 		addr = addr_zero_reg(cpu.reg_x);
 		val = mem_read_byte(addr);
 		val = op_ROL(val);
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0x2E:					//absolute Addressing 
 		addr = addr_abs();
 		val = mem_read_byte(addr);
 		val = op_ROL(val);
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0x3E:					//absolute x Indexed Addressing
 		addr = addr_abs_reg(cpu.reg_x);
 		val = mem_read_byte(addr);
 		val = op_ROL(val);
 		mem_write_byte(addr, val);
+        cycle = 7;
 		break;
 	/*************** ROR **************/
 	case 0x6A:					//register a Addressing
 		val = cpu.reg_a;
 		val = op_ROR(val);
 		mem_write_byte(addr, val);
+        cycle = 2;
 		break;
 	case 0x66:					//zero page Addressing 
 		addr = addr_zero();
 		val = mem_read_byte(addr);
 		val = op_ROR(val);
 		mem_write_byte(addr, val);
+        cycle = 5;
 		break;
 	case 0x76:					//zero page x Indexed Addressing
 		addr = addr_zero_reg(cpu.reg_x);
 		val = mem_read_byte(addr);
 		val = op_ROR(val);
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0x6E:					//absolute Addressing 
 		addr = addr_abs();
 		val = mem_read_byte(addr);
 		val = op_ROR(val);
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0x7E:					//absolute x Indexed Addressing
 		addr = addr_abs_reg(cpu.reg_x);
 		val = mem_read_byte(addr);
 		val = op_ROR(val);
 		mem_write_byte(addr, val);
+        cycle = 7;
 		break;
 
 	/****************** ADC ********************/
 	case 0x69:					// ADC imm
 		op_ADC(op_read_byte());
+        cycle = 2;
 		break;
 	case 0x65:					//zero page 
 		addr = addr_zero();
 		val = mem_read_byte(addr);
 		op_ADC(val);
+        cycle = 3;
 		break;
 	case 0x75:					//zero page x indexed
 		op_ADC(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0x6D:					//absolute 
 		op_ADC(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 	case 0x7D:					//absolute x indexed
 		op_ADC(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0x79:					//absolute y indexed 
 		op_ADC(mem_read_byte(
 				addr_zero_reg(cpu.reg_y)
 				));
+        cycle = 5;
 		break;
 	case 0x61:					//x
 		op_ADC(mem_read_byte(
 				addr_ind_x()
 				));
+        cycle = 6;
 		break;
 	case 0x71:					//y
 		op_ADC(mem_read_byte(
 				addr_ind_y()
 				));
+        cycle = 4;
 		break;
 
 	/****************** SBC ********************/
 	case 0xE9:					// SBC imm
 		op_SBC(op_read_byte());
+        cycle = 2;
 		break;
 	case 0xE5:					//zero page 
 		addr = addr_zero();
 		val = mem_read_byte(addr);
 		op_SBC(val);
+        cycle = 3;
 		break;
 	case 0xF5:					//zero page x indexed
 		op_SBC(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0xED:					//absolute 
 		op_SBC(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 	case 0xFD:					//absolute x indexed
 		op_SBC(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0xF9:					//absolute y indexed 
 		op_SBC(mem_read_byte(
 				addr_zero_reg(cpu.reg_y)
 				));
+        cycle = 4;
 		break;
 	case 0xE1:					//x
 		op_SBC(mem_read_byte(
 				addr_ind_x()
 				));
+        cycle = 6;
 		break;
 	case 0xF1:					//y:
 		op_SBC(mem_read_byte(
 				addr_ind_y()
 				));
+        cycle = 5;
 		break;
 
 	/****************** CMP ********************/
 	case 0xC9:					// CMP imm
 		op_CMP(op_read_byte());
+        cycle = 2;
 		break;
 	case 0xC5:					//zero page 
 		addr = addr_zero();
 		val = mem_read_byte(addr);
 		op_CMP(val);
+        cycle = 3;
 		break;
 	case 0xD5:					//zero page x indexed
 		op_CMP(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0xCD:					//absolute 
 		op_CMP(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 	case 0xDD:					//absolute x indexed
 		op_CMP(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0xD9:					//absolute y indexed 
 		op_CMP(mem_read_byte(
 				addr_zero_reg(cpu.reg_y)
 				));
+        cycle = 4;
 		break;
 	case 0xC1:					//x
 		op_CMP(mem_read_byte(
 				addr_ind_x()
 				));
+        cycle = 6;
 		break;
 	case 0xD1:					//y:
 		op_CMP(mem_read_byte(
 				addr_ind_y()
 				));
+        cycle = 5;
 		break;
 
 	/**************** CPX/CPY *****************/
 	case 0xE0:					//imm
 		op_CPX(op_read_byte());
+        cycle = 2;
 		break;
 	case 0xE4:					//zero page
 		op_CPX(mem_read_byte(
 				addr_zero()	
 				));
+        cycle = 3;
 		break;
 	case 0xEC:					//absolute
 		op_CPX(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 	case 0xC0:
 		op_CPY(op_read_byte());
+        cycle = 2;
 		break;
 	case 0xC4:
 		op_CPY(mem_read_byte(
 				addr_zero()
 				));
+        cycle = 3;
 		break;
 	case 0xCC:
 		op_CPY(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 
 	/*************** INC/DEC **************/	
@@ -528,196 +652,239 @@ int exec(u8 opcode){
 		addr = addr_zero();
 		val = op_INC(mem_read_byte(addr));
 		mem_write_byte(addr, val);
+        cycle = 5;
 		break;
 	case 0xF6:					//zero page x indexed
 		addr = addr_zero_reg(cpu.reg_x);
 		val = op_INC(mem_read_byte(addr));
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0xEE:					//absolute
 		addr = addr_abs();
 		val = op_INC(mem_read_byte(addr));
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0xFE:					//absolute x Indexed
 		addr = addr_abs_reg(cpu.reg_x);
 		val = op_INC(mem_read_byte(addr));
 		mem_write_byte(addr, val);
+        cycle = 7;
 		break;
 	case 0xC6:					//zero page
 		addr = addr_zero();
 		val = op_DEC(mem_read_byte(addr));
 		mem_write_byte(addr, val);
+        cycle = 5;
 		break;
 	case 0xD6:					//zero page x indexed
 		addr = addr_zero_reg(cpu.reg_x);
 		val = op_DEC(mem_read_byte(addr));
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0xCE:					//absolute
 		addr = addr_abs();
 		val = op_DEC(mem_read_byte(addr));
 		mem_write_byte(addr, val);
+        cycle = 6;
 		break;
 	case 0xDE:					//absolute x Indexed
 		addr = addr_abs_reg(cpu.reg_x);
 		val = op_DEC(mem_read_byte(addr));
 		mem_write_byte(addr, val);
+        cycle = 7;
 		break;
 
 	case 0xE8:					//INX
 		op_INX();
+        cycle = 2;
 		break;
 	case 0xCA:					//DEX
 		op_DEX();
+        cycle = 2;
 		break;
 	case 0xC8:					//INY
 		op_INY();
+        cycle = 2;
 		break;
 	case 0x88:					//DEY
 		op_DEY();
+        cycle = 2;
 		break;
 
 	case 0x38:
 		op_SEC();
+        cycle = 2;
 		break;
 	case 0xF8:
 		op_SED();
+        cycle = 2;
 		break;
 	case 0x78:
 		op_SEI();
+        cycle = 2;
 		break;
 	case 0x18:
 		op_CLC();
+        cycle = 2;
 		break;
 	case 0xD8:
 		op_CLD();
+        cycle = 2;
 		break;
 	case 0xB8:
 		op_CLV();
+        cycle = 2;
 		break;
 	case 0x58:
 		op_CLI();
+        cycle = 2;
 		break;
 
 	/****************** AND ********************/
 	case 0x29:					// AND imm
 		op_AND(op_read_byte());
+        cycle = 2;
 		break;
 	case 0x25:					//zero page 
 		addr = addr_zero();
 		val = mem_read_byte(addr);
 		op_AND(val);
+        cycle = 3;
 		break;
 	case 0x35:					//zero page x indexed
 		op_AND(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0x2D:					//absolute 
 		op_AND(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 	case 0x3D:					//absolute x indexed
 		op_AND(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0x39:					//absolute y indexed 
 		op_AND(mem_read_byte(
 				addr_zero_reg(cpu.reg_y)
 				));
+        cycle = 4;
 		break;
 	case 0x21:					//x
 		op_AND(mem_read_byte(
 				addr_ind_x()
 				));
+        cycle = 6;
 		break;
 	case 0x31:					//y
 		op_AND(mem_read_byte(
 				addr_ind_y()
 				));
+        cycle = 5;
 		break;
 
 	/****************** ORA ********************/
 	case 0x09:					// ORA imm
 		op_ORA(op_read_byte());
+        cycle = 2;
 		break;
 	case 0x05:					//zero page 
 		addr = addr_zero();
 		val = mem_read_byte(addr);
 		op_ORA(val);
+        cycle = 3;
 		break;
 	case 0x15:					//zero page x indexed
 		op_ORA(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0x0D:					//absolute 
 		op_ORA(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 	case 0x1D:					//absolute x indexed
 		op_ORA(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0x19:					//absolute y indexed 
 		op_ORA(mem_read_byte(
 				addr_zero_reg(cpu.reg_y)
 				));
+        cycle = 4;
 		break;
 	case 0x01:					//x
 		op_ORA(mem_read_byte(
 				addr_ind_x()
 				));
+        cycle = 6;
 		break;
 	case 0x11:					//y
 		op_ORA(mem_read_byte(
 				addr_ind_y()
 				));
+        cycle = 5;
 		break;
 
 	/****************** EOR ********************/
 	case 0x49:					// EOR imm
 		op_EOR(op_read_byte());
+        cycle = 2;
 		break;
 	case 0x45:					//zero page 
 		addr = addr_zero();
 		val = mem_read_byte(addr);
 		op_EOR(val);
+        cycle = 3;
 		break;
 	case 0x55:					//zero page x indexed
 		op_EOR(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0x4D:					//absolute 
 		op_EOR(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 	case 0x5D:					//absolute x indexed
 		op_EOR(mem_read_byte(
 				addr_zero_reg(cpu.reg_x)
 				));
+        cycle = 4;
 		break;
 	case 0x59:					//absolute y indexed 
 		op_EOR(mem_read_byte(
 				addr_zero_reg(cpu.reg_y)
 				));
+        cycle = 4;
 		break;
 	case 0x41:					//x
 		op_EOR(mem_read_byte(
 				addr_ind_x()
 				));
+        cycle = 6;
 		break;
 	case 0x51:					//y
 		op_EOR(mem_read_byte(
 				addr_ind_y()
 				));
+        cycle = 5;
 		break;
 
 	/******************** BIT ********************/
@@ -725,51 +892,65 @@ int exec(u8 opcode){
 		op_BIT(mem_read_byte(
 				addr_zero()
 				));
+        cycle = 3;
 		break;
 	case 0x2C:					//absolute 
 		op_BIT(mem_read_byte(
 				addr_abs()
 				));
+        cycle = 4;
 		break;
 
 	/******************* JMP ********************/
 	case 0x4C:
 		op_JMP(addr_abs());
+        cycle = 3;
 		break;
 	case 0x6C:
 		op_JMP(mem_read_word(addr_abs()));
+        cycle = 5;
 		break;
 
 	case 0x90:
 		op_BCC();
+        cycle = 2;
 		break;
 	case 0xB0:
 		op_BCS();
+        cycle = 2;
 		break;
 	case 0xF0:
 		op_BEQ();
+        cycle = 2;
 		break;
 	case 0xD0:
 		op_BNE();
+        cycle = 2;
 		break;
 	case 0x50:
 		op_BVC();
+        cycle = 2;
 		break;
 	case 0x70:
 		op_BVS();
+        cycle = 2;
 		break;
 	case 0x30:
 		op_BMI();
+        cycle = 2;
 		break;
 	case 0x10:
 		op_BPL();
+        cycle = 2;
 		break;
 
 	case 0x20:
 		op_JSR();
+        cycle = 6;
 		break;
 	case 0x60:
 		op_RTS();
+        cycle = 6;
 		break;
 
 	default:
