@@ -1,172 +1,147 @@
 #include <stdio.h>
 #include <string.h>
 #include "../global.h"
-
-#include "memory.h"
+#include "nes.h"
 #include "cpu.h"
+#include "memory.h"
+#include "debug.h"
 
+Cpu::Cpu(Nes *parent)
+    :nes(parent){
 
-#define FLAG_C 0
-#define FLAG_Z 1
-#define FLAG_I 2
-#define FLAG_D 3
-#define FLAG_B 4
-#define	FLAG_V 6 
-#define FLAG_N 7
+}
 
-#define SET_FLAG_N(x) (set_flag(FLAG_N, ((x)>>7)&1 > 0))
-#define SET_FLAG_Z(x) (set_flag(FLAG_Z, (x) == 0))
-
-#define ADDR_NMI 	0xFFFA
-#define ADDR_RESET	0xFFFC 
-#define ADDR_IRQ 	0xFFFE
-
-struct struct_cpu cpu;
-
-int cpu_init(){
-
-	memset(&cpu, 0, sizeof(cpu));
-
-	cpu.reg_a = (u8)0;
-	cpu.reg_x = (u8)0;
-	cpu.reg_y = (u8)0;
+int Cpu::init(){
+    reg_a = (u8)0;
+    reg_x = (u8)0;
+    reg_y = (u8)0;
 	
-	cpu.reg_s = (u8)0xff;							//points to the top of stack
-	cpu.reg_pc = (u16)0x8000;
-	cpu.reg_flag = (u8)0;
+    reg_s = (u8)0;							//points to the top of stack
+    reg_pc = (u16)0;
+    reg_flag = (u8)0;
+    isRunning = false;
+    isNMI = false;
+    isIRQ = false;
+    isReset = false;
+    isSleep = false;
 	return 0;
 }
 
-// 0 1 2 3 4 5 6 7
-// C Z I D B   V N
-void set_flag(u8 type, bool val){
-	if(val){
-		cpu.reg_flag |= (u8)(1<<type);
-	}else{
-		cpu.reg_flag &= ~(u8)(1<<type);
-	}
+void Cpu::setNMI(){
+    isNMI = true;
 }
 
-inline bool get_flag(u8 type){
-	return ((cpu.reg_flag >> type) & 1) > 0;
+void Cpu::reset(){
+    reg_a = 0;
+    reg_x = 0;
+    reg_y = 0;
+    reg_s = 0;
+    reg_flag = 0;
+    isNMI = false;
+    isIRQ = false;
+    isSleep = false;
+    reg_pc = readWord(ADDR_RESET);
 }
 
-BYTE op_read_byte(){
-	BYTE byte = mem_read_byte(cpu.reg_pc);
-	++cpu.reg_pc;
-	return byte;
-}
-u16 op_read_word(){
-	u16 word = mem_read_word(cpu.reg_pc);
-	cpu.reg_pc += 2;
-	return word;
-}
-//	stack 
-void push_byte(u8 byte){
-	mem_write_byte(STACK_ADDR(cpu.reg_s), byte);
-	--cpu.reg_s;
-}
-void push_word(u16 word){
-	--cpu.reg_s;
-	mem_write_word(STACK_ADDR(cpu.reg_s), word);
-	--cpu.reg_s;
-}
-u16 pop_word(){
-	++cpu.reg_s;
-	u16 word = mem_read_word(STACK_ADDR(cpu.reg_s));
-	++cpu.reg_s;
-	return word;
-}
-u8 pop_byte(){
-	++cpu.reg_s;
-	return mem_read_byte(STACK_ADDR(cpu.reg_s));
+void Cpu::start(){
+    if(!isRunning){
+        isRunning = true;
+    }
 }
 
-void setNMI(){
-	cpu.isNMI = true;
-}
-
-// cpu
-int cpu_run(int cycle_req){
+int Cpu::run(int cycle_req){
 	//get next code
 	u8 opcode = 0;
     int cycles = 0;
-	while(cpu.isRuning &&(cycles<cycle_req)){
+    while(isRunning &&(cycles<cycle_req)){
+
+        DEBUG_CPU_OPSTART
+
 		opcode = op_read_byte();
-		cycles += exec(opcode);
-		if(cpu.isNMI){
-			push_word(cpu.reg_pc);
-			push_byte(cpu.reg_flag);
-			set_flag(FLAG_I, true);
-			set_flag(FLAG_B, false);
-			cpu.reg_pc = mem_read_word(ADDR_NMI);
+        cycles += exec(opcode);
+
+        if(isSleep){
+           isSleep = false;
+           return 0;
+        }
+
+        if(isNMI){
+            push_word(reg_pc);
+            push_byte(reg_flag);
+            setFlag(FLAG_I, true);
+            setFlag(FLAG_B, false);
+            reg_pc = readWord(ADDR_NMI);
             cycles += 7;
-		}else if(cpu.isIRQ){
-			push_word(cpu.reg_pc);
-			push_byte(cpu.reg_flag);
-			set_flag(FLAG_I, true);
-			set_flag(FLAG_B, false);
-			cpu.reg_pc = mem_read_word(ADDR_IRQ);
+            isNMI = false;
+        }else if(isIRQ){
+            push_word(reg_pc);
+            push_byte(reg_flag);
+            setFlag(FLAG_I, true);
+            setFlag(FLAG_B, false);
+            reg_pc = readWord(ADDR_IRQ);
             cycles += 7;
+            isIRQ = false;
 		}
+
+//        DEBUG_CPU_OPEND
 	}
     return cycles - cycle_req;
 }
 
-void cpu_dump(){
+void Cpu::dump(){
 	printf("A=%02X X=%02X Y=%02X  S=%02X PC=%04X\n", 
-		cpu.reg_a,cpu.reg_x,cpu.reg_y,cpu.reg_s,cpu.reg_pc);
+        reg_a,reg_x,reg_y,reg_s,reg_pc);
 	printf("C:%d Z:%d I:%d D:%d B:%d V:%d N:%d\n", 
-			get_flag(FLAG_C), get_flag(FLAG_Z), get_flag(FLAG_I),
-			get_flag(FLAG_D), get_flag(FLAG_B), get_flag(FLAG_V), get_flag(FLAG_N));
+            getFlag(FLAG_C), getFlag(FLAG_Z), getFlag(FLAG_I),
+            getFlag(FLAG_D), getFlag(FLAG_B), getFlag(FLAG_V), getFlag(FLAG_N));
 }
 
-int exec(u8 opcode){
+int Cpu::exec(u8 opcode){
 	u16 addr = 0;
 	u8 val = 0;
     u8 cycle = 0;
-
 	switch(opcode){
 	case 0xA9:				//LDA imm	
 		op_LDA(op_read_byte());	
         cycle = 2;
 		break;
 	case 0xA5:				//zero page Addressing
-		op_LDA(mem_read_byte(addr_zero()));
+        op_LDA(readByte(addr_zero()));
         cycle = 3;
 		break;
 	case 0xB5:				//zero page x indexed addressing
-		op_LDA(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_LDA(readByte(
+                addr_zero_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0xAD:				//absolute addressing
-		op_LDA(mem_read_byte(
+        op_LDA(readByte(
 				addr_abs()
 				));
         cycle = 4;
+
 		break;
 	case 0xBD:				//absolute x indexed addressing
-		op_LDA(mem_read_byte(
-				addr_abs_reg(cpu.reg_x)
+        op_LDA(readByte(
+                addr_abs_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0xB9:				//absolute y indexed addressing
-		op_LDA(mem_read_byte(
-				addr_abs_reg(cpu.reg_y)
+        op_LDA(readByte(
+                addr_abs_reg(reg_y)
 				));
         cycle = 4;
 		break;
 	case 0xA1:				//x
-		op_LDA(mem_read_byte(
+        op_LDA(readByte(
 				addr_ind_x()
 				));
         cycle = 6;
 		break;
 	case 0xB1:				//y
-		op_LDA(mem_read_byte(
+        op_LDA(readByte(
 				addr_ind_y()
 				));
         cycle = 6;
@@ -177,26 +152,26 @@ int exec(u8 opcode){
         cycle = 2;
 		break;
 	case 0xA6:				//zero page Addressing
-		op_LDX(mem_read_byte(
+        op_LDX(readByte(
 				addr_zero()
 				));
         cycle = 3;
 		break;
 	case 0xB6:				//zero page y indexed Addressing
-		op_LDX(mem_read_byte(
-				addr_zero_reg(cpu.reg_y)
+        op_LDX(readByte(
+                addr_zero_reg(reg_y)
 				));
         cycle = 4;
 		break;
 	case 0xAE:				//absolute Addressing
-		op_LDX(mem_read_byte(
+        op_LDX(readByte(
 				addr_abs()
 				));
         cycle = 4;
 		break;
 	case 0xBE:				//absolute y indexed Addressing 
-		op_LDX(mem_read_byte(
-				addr_abs_reg(cpu.reg_y)
+        op_LDX(readByte(
+                addr_abs_reg(reg_y)
 				));
         cycle = 4;
 		break;
@@ -206,26 +181,26 @@ int exec(u8 opcode){
         cycle = 2;
 		break;
 	case 0xA4:				//zero page Addressing
-		op_LDY(mem_read_byte(
+        op_LDY(readByte(
 				addr_zero()
 				));
         cycle = 3;
 		break;
 	case 0xB4:				//zero page x indexed Addressing
-		op_LDY(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_LDY(readByte(
+                addr_zero_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0xAC:				//absolute Addressing
-		op_LDY(mem_read_byte(
+        op_LDY(readByte(
 				addr_abs()
 				));
         cycle = 4;
 		break;
 	case 0xBC:				//absolute x indexed Addressing 
-		op_LDY(mem_read_byte(
-				addr_abs_reg(cpu.reg_x)
+        op_LDY(readByte(
+                addr_abs_reg(reg_x)
 				));
         cycle = 5;
 		break;
@@ -235,7 +210,7 @@ int exec(u8 opcode){
         cycle = 3;
 		break;
 	case 0x95:				//zero page x indexed addressing
-		op_STA(addr_zero_reg(cpu.reg_x));
+        op_STA(addr_zero_reg(reg_x));
         cycle = 4;
 		break;
 	case 0x8D:				//absolute addressing
@@ -243,11 +218,11 @@ int exec(u8 opcode){
         cycle = 4;
 		break;
 	case 0x9D:				//absolute x indexed addressing
-		op_STA(addr_abs_reg(cpu.reg_x));
+        op_STA(addr_abs_reg(reg_x));
         cycle = 5;
 		break;
 	case 0x99:				//absolute y indexed addressing
-		op_STA(addr_abs_reg(cpu.reg_y));
+        op_STA(addr_abs_reg(reg_y));
         cycle = 5;
 		break;
 	case 0x81:				//x
@@ -264,7 +239,7 @@ int exec(u8 opcode){
         cycle = 3;
 		break;
 	case 0x96:				//zero page y indexed addressing
-		op_STX(addr_zero_reg(cpu.reg_y));
+        op_STX(addr_zero_reg(reg_y));
         cycle = 4;
 		break;
 	case 0x8E:				//absolute addressing
@@ -277,7 +252,7 @@ int exec(u8 opcode){
         cycle = 3;
 		break;
 	case 0x94:				//zero page x indexed addressing
-		op_STY(addr_zero_reg(cpu.reg_x));
+        op_STY(addr_zero_reg(reg_x));
         cycle = 4;
 		break;
 	case 0x8C:				//absolute addressing
@@ -329,143 +304,143 @@ int exec(u8 opcode){
 
 	/*************** ASL **************/
 	case 0x0A:					//register a Addressing
-		val = cpu.reg_a;
+        val = reg_a;
 		val = op_ASL(val);
-		mem_write_byte(addr, val);
+        reg_a = val;
         cycle = 2;
 		break;
 	case 0x06:					//zero page Addressing 
 		addr = addr_zero();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		val = op_ASL(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 5;
 		break;
 	case 0x16:					//zero page x Indexed Addressing
-		addr = addr_zero_reg(cpu.reg_x);
-		val = mem_read_byte(addr);
+        addr = addr_zero_reg(reg_x);
+        val = readByte(addr);
 		val = op_ASL(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0x0E:					//absolute Addressing 
 		addr = addr_abs();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		val = op_ASL(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0x1E:					//absolute x Indexed Addressing
-		addr = addr_abs_reg(cpu.reg_x);
-		val = mem_read_byte(addr);
+        addr = addr_abs_reg(reg_x);
+        val = readByte(addr);
 		val = op_ASL(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 7;
 		break;
 
 	/*************** LSR **************/
 	case 0x4A:					//register a Addressing
-		val = cpu.reg_a;
-		val = op_LSR(val);
-		mem_write_byte(addr, val);
+        val = reg_a;
+        val = op_LSR(val);
+        reg_a = val;
         cycle = 2;
 		break;
 	case 0x46:					//zero page Addressing 
 		addr = addr_zero();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		val = op_LSR(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle= 5;
 		break;
 	case 0x56:					//zero page x Indexed Addressing
-		addr = addr_zero_reg(cpu.reg_x);
-		val = mem_read_byte(addr);
+        addr = addr_zero_reg(reg_x);
+        val = readByte(addr);
 		val = op_LSR(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0x4E:					//absolute Addressing 
 		addr = addr_abs();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		val = op_LSR(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0x5E:					//absolute x Indexed Addressing
-		addr = addr_abs_reg(cpu.reg_x);
-		val = mem_read_byte(addr);
+        addr = addr_abs_reg(reg_x);
+        val = readByte(addr);
 		val = op_LSR(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 7;
 		break;
 	/*************** ROL **************/
 	case 0x2A:					//register a Addressing
-		val = cpu.reg_a;
+        val = reg_a;
 		val = op_ROL(val);
-		mem_write_byte(addr, val);
+        reg_a = val;
         cycle = 2;
 		break;
 	case 0x26:					//zero page Addressing 
 		addr = addr_zero();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		val = op_ROL(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 5;
 		break;
 	case 0x36:					//zero page x Indexed Addressing
-		addr = addr_zero_reg(cpu.reg_x);
-		val = mem_read_byte(addr);
+        addr = addr_zero_reg(reg_x);
+        val = readByte(addr);
 		val = op_ROL(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0x2E:					//absolute Addressing 
 		addr = addr_abs();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		val = op_ROL(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0x3E:					//absolute x Indexed Addressing
-		addr = addr_abs_reg(cpu.reg_x);
-		val = mem_read_byte(addr);
+        addr = addr_abs_reg(reg_x);
+        val = readByte(addr);
 		val = op_ROL(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 7;
 		break;
 	/*************** ROR **************/
 	case 0x6A:					//register a Addressing
-		val = cpu.reg_a;
+        val = reg_a;
 		val = op_ROR(val);
-		mem_write_byte(addr, val);
+        reg_a = val;
         cycle = 2;
 		break;
 	case 0x66:					//zero page Addressing 
 		addr = addr_zero();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		val = op_ROR(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 5;
 		break;
 	case 0x76:					//zero page x Indexed Addressing
-		addr = addr_zero_reg(cpu.reg_x);
-		val = mem_read_byte(addr);
+        addr = addr_zero_reg(reg_x);
+        val = readByte(addr);
 		val = op_ROR(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0x6E:					//absolute Addressing 
 		addr = addr_abs();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		val = op_ROR(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0x7E:					//absolute x Indexed Addressing
-		addr = addr_abs_reg(cpu.reg_x);
-		val = mem_read_byte(addr);
+        addr = addr_abs_reg(reg_x);
+        val = readByte(addr);
 		val = op_ROR(val);
-		mem_write_byte(addr, val);
+        writeByte(addr, val);
         cycle = 7;
 		break;
 
@@ -476,42 +451,42 @@ int exec(u8 opcode){
 		break;
 	case 0x65:					//zero page 
 		addr = addr_zero();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		op_ADC(val);
         cycle = 3;
 		break;
 	case 0x75:					//zero page x indexed
-		op_ADC(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_ADC(readByte(
+                addr_zero_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0x6D:					//absolute 
-		op_ADC(mem_read_byte(
+        op_ADC(readByte(
 				addr_abs()
 				));
         cycle = 4;
 		break;
 	case 0x7D:					//absolute x indexed
-		op_ADC(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_ADC(readByte(
+                addr_abs_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0x79:					//absolute y indexed 
-		op_ADC(mem_read_byte(
-				addr_zero_reg(cpu.reg_y)
+        op_ADC(readByte(
+                addr_abs_reg(reg_y)
 				));
         cycle = 5;
 		break;
 	case 0x61:					//x
-		op_ADC(mem_read_byte(
+        op_ADC(readByte(
 				addr_ind_x()
 				));
         cycle = 6;
 		break;
 	case 0x71:					//y
-		op_ADC(mem_read_byte(
+        op_ADC(readByte(
 				addr_ind_y()
 				));
         cycle = 4;
@@ -524,42 +499,42 @@ int exec(u8 opcode){
 		break;
 	case 0xE5:					//zero page 
 		addr = addr_zero();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		op_SBC(val);
         cycle = 3;
 		break;
 	case 0xF5:					//zero page x indexed
-		op_SBC(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_SBC(readByte(
+                addr_zero_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0xED:					//absolute 
-		op_SBC(mem_read_byte(
+        op_SBC(readByte(
 				addr_abs()
 				));
         cycle = 4;
 		break;
 	case 0xFD:					//absolute x indexed
-		op_SBC(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_SBC(readByte(
+                addr_abs_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0xF9:					//absolute y indexed 
-		op_SBC(mem_read_byte(
-				addr_zero_reg(cpu.reg_y)
+        op_SBC(readByte(
+                addr_abs_reg(reg_y)
 				));
         cycle = 4;
 		break;
 	case 0xE1:					//x
-		op_SBC(mem_read_byte(
+        op_SBC(readByte(
 				addr_ind_x()
 				));
         cycle = 6;
 		break;
 	case 0xF1:					//y:
-		op_SBC(mem_read_byte(
+        op_SBC(readByte(
 				addr_ind_y()
 				));
         cycle = 5;
@@ -572,42 +547,42 @@ int exec(u8 opcode){
 		break;
 	case 0xC5:					//zero page 
 		addr = addr_zero();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		op_CMP(val);
         cycle = 3;
 		break;
 	case 0xD5:					//zero page x indexed
-		op_CMP(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_CMP(readByte(
+                addr_zero_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0xCD:					//absolute 
-		op_CMP(mem_read_byte(
+        op_CMP(readByte(
 				addr_abs()
 				));
         cycle = 4;
 		break;
 	case 0xDD:					//absolute x indexed
-		op_CMP(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_CMP(readByte(
+                addr_abs_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0xD9:					//absolute y indexed 
-		op_CMP(mem_read_byte(
-				addr_zero_reg(cpu.reg_y)
+        op_CMP(readByte(
+                addr_abs_reg(reg_y)
 				));
         cycle = 4;
 		break;
 	case 0xC1:					//x
-		op_CMP(mem_read_byte(
+        op_CMP(readByte(
 				addr_ind_x()
 				));
         cycle = 6;
 		break;
 	case 0xD1:					//y:
-		op_CMP(mem_read_byte(
+        op_CMP(readByte(
 				addr_ind_y()
 				));
         cycle = 5;
@@ -619,13 +594,13 @@ int exec(u8 opcode){
         cycle = 2;
 		break;
 	case 0xE4:					//zero page
-		op_CPX(mem_read_byte(
+        op_CPX(readByte(
 				addr_zero()	
 				));
         cycle = 3;
 		break;
 	case 0xEC:					//absolute
-		op_CPX(mem_read_byte(
+        op_CPX(readByte(
 				addr_abs()
 				));
         cycle = 4;
@@ -635,13 +610,13 @@ int exec(u8 opcode){
         cycle = 2;
 		break;
 	case 0xC4:
-		op_CPY(mem_read_byte(
+        op_CPY(readByte(
 				addr_zero()
 				));
         cycle = 3;
 		break;
 	case 0xCC:
-		op_CPY(mem_read_byte(
+        op_CPY(readByte(
 				addr_abs()
 				));
         cycle = 4;
@@ -650,50 +625,50 @@ int exec(u8 opcode){
 	/*************** INC/DEC **************/	
 	case 0xE6:					//zero page
 		addr = addr_zero();
-		val = op_INC(mem_read_byte(addr));
-		mem_write_byte(addr, val);
+        val = op_INC(readByte(addr));
+        writeByte(addr, val);
         cycle = 5;
 		break;
 	case 0xF6:					//zero page x indexed
-		addr = addr_zero_reg(cpu.reg_x);
-		val = op_INC(mem_read_byte(addr));
-		mem_write_byte(addr, val);
+        addr = addr_zero_reg(reg_x);
+        val = op_INC(readByte(addr));
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0xEE:					//absolute
 		addr = addr_abs();
-		val = op_INC(mem_read_byte(addr));
-		mem_write_byte(addr, val);
+        val = op_INC(readByte(addr));
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0xFE:					//absolute x Indexed
-		addr = addr_abs_reg(cpu.reg_x);
-		val = op_INC(mem_read_byte(addr));
-		mem_write_byte(addr, val);
+        addr = addr_abs_reg(reg_x);
+        val = op_INC(readByte(addr));
+        writeByte(addr, val);
         cycle = 7;
 		break;
 	case 0xC6:					//zero page
 		addr = addr_zero();
-		val = op_DEC(mem_read_byte(addr));
-		mem_write_byte(addr, val);
+        val = op_DEC(readByte(addr));
+        writeByte(addr, val);
         cycle = 5;
 		break;
 	case 0xD6:					//zero page x indexed
-		addr = addr_zero_reg(cpu.reg_x);
-		val = op_DEC(mem_read_byte(addr));
-		mem_write_byte(addr, val);
+        addr = addr_zero_reg(reg_x);
+        val = op_DEC(readByte(addr));
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0xCE:					//absolute
 		addr = addr_abs();
-		val = op_DEC(mem_read_byte(addr));
-		mem_write_byte(addr, val);
+        val = op_DEC(readByte(addr));
+        writeByte(addr, val);
         cycle = 6;
 		break;
 	case 0xDE:					//absolute x Indexed
-		addr = addr_abs_reg(cpu.reg_x);
-		val = op_DEC(mem_read_byte(addr));
-		mem_write_byte(addr, val);
+        addr = addr_abs_reg(reg_x);
+        val = op_DEC(readByte(addr));
+        writeByte(addr, val);
         cycle = 7;
 		break;
 
@@ -750,42 +725,42 @@ int exec(u8 opcode){
 		break;
 	case 0x25:					//zero page 
 		addr = addr_zero();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		op_AND(val);
         cycle = 3;
 		break;
 	case 0x35:					//zero page x indexed
-		op_AND(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_AND(readByte(
+                addr_zero_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0x2D:					//absolute 
-		op_AND(mem_read_byte(
+        op_AND(readByte(
 				addr_abs()
 				));
         cycle = 4;
 		break;
 	case 0x3D:					//absolute x indexed
-		op_AND(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_AND(readByte(
+                addr_abs_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0x39:					//absolute y indexed 
-		op_AND(mem_read_byte(
-				addr_zero_reg(cpu.reg_y)
+        op_AND(readByte(
+                addr_abs_reg(reg_y)
 				));
         cycle = 4;
 		break;
 	case 0x21:					//x
-		op_AND(mem_read_byte(
+        op_AND(readByte(
 				addr_ind_x()
 				));
         cycle = 6;
 		break;
 	case 0x31:					//y
-		op_AND(mem_read_byte(
+        op_AND(readByte(
 				addr_ind_y()
 				));
         cycle = 5;
@@ -798,42 +773,42 @@ int exec(u8 opcode){
 		break;
 	case 0x05:					//zero page 
 		addr = addr_zero();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		op_ORA(val);
         cycle = 3;
 		break;
 	case 0x15:					//zero page x indexed
-		op_ORA(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_ORA(readByte(
+                addr_zero_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0x0D:					//absolute 
-		op_ORA(mem_read_byte(
+        op_ORA(readByte(
 				addr_abs()
 				));
         cycle = 4;
 		break;
 	case 0x1D:					//absolute x indexed
-		op_ORA(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_ORA(readByte(
+                addr_abs_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0x19:					//absolute y indexed 
-		op_ORA(mem_read_byte(
-				addr_zero_reg(cpu.reg_y)
+        op_ORA(readByte(
+                addr_abs_reg(reg_y)
 				));
         cycle = 4;
 		break;
 	case 0x01:					//x
-		op_ORA(mem_read_byte(
+        op_ORA(readByte(
 				addr_ind_x()
 				));
         cycle = 6;
 		break;
 	case 0x11:					//y
-		op_ORA(mem_read_byte(
+        op_ORA(readByte(
 				addr_ind_y()
 				));
         cycle = 5;
@@ -846,42 +821,42 @@ int exec(u8 opcode){
 		break;
 	case 0x45:					//zero page 
 		addr = addr_zero();
-		val = mem_read_byte(addr);
+        val = readByte(addr);
 		op_EOR(val);
         cycle = 3;
 		break;
 	case 0x55:					//zero page x indexed
-		op_EOR(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_EOR(readByte(
+                addr_zero_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0x4D:					//absolute 
-		op_EOR(mem_read_byte(
+        op_EOR(readByte(
 				addr_abs()
 				));
         cycle = 4;
 		break;
 	case 0x5D:					//absolute x indexed
-		op_EOR(mem_read_byte(
-				addr_zero_reg(cpu.reg_x)
+        op_EOR(readByte(
+                addr_abs_reg(reg_x)
 				));
         cycle = 4;
 		break;
 	case 0x59:					//absolute y indexed 
-		op_EOR(mem_read_byte(
-				addr_zero_reg(cpu.reg_y)
+        op_EOR(readByte(
+                addr_abs_reg(reg_y)
 				));
         cycle = 4;
 		break;
 	case 0x41:					//x
-		op_EOR(mem_read_byte(
+        op_EOR(readByte(
 				addr_ind_x()
 				));
         cycle = 6;
 		break;
 	case 0x51:					//y
-		op_EOR(mem_read_byte(
+        op_EOR(readByte(
 				addr_ind_y()
 				));
         cycle = 5;
@@ -889,13 +864,13 @@ int exec(u8 opcode){
 
 	/******************** BIT ********************/
 	case 0x24:					//zero page 
-		op_BIT(mem_read_byte(
+        op_BIT(readByte(
 				addr_zero()
 				));
         cycle = 3;
 		break;
 	case 0x2C:					//absolute 
-		op_BIT(mem_read_byte(
+        op_BIT(readByte(
 				addr_abs()
 				));
         cycle = 4;
@@ -903,14 +878,21 @@ int exec(u8 opcode){
 
 	/******************* JMP ********************/
 	case 0x4C:
-		op_JMP(addr_abs());
+        addr = addr_abs();
+        if(addr == reg_pc-2){           //ugly impelement, just for reduce the cpu useage
+            isSleep = true;
+        }else{
+            op_JMP(addr);
+        }
         cycle = 3;
 		break;
 	case 0x6C:
-		op_JMP(mem_read_word(addr_abs()));
+        addr = op_read_word();
+        val = readByte(addr);
+        addr = (addr & 0xFF00) | ((addr+1)&0x00FF);
+        op_JMP((((u16)readByte(addr))<<8) | val);
         cycle = 5;
 		break;
-
 	case 0x90:
 		op_BCC();
         cycle = 2;
@@ -948,279 +930,390 @@ int exec(u8 opcode){
 		op_JSR();
         cycle = 6;
 		break;
+    case 0x40:
+        op_RTI();
+        cycle = 6;
+        break;
 	case 0x60:
 		op_RTS();
         cycle = 6;
-		break;
+        break;
+    case 0xEA:          //NOP
+        cycle = 2;
+        break;
+    case 0x44:
+    case 0x04:
+        cycle = 3;
+        break;
+    case 0x00:          //BRK
+        op_BRK();
+        cycle = 7;
+        break;
+
+
 
 	default:
 		printf("error: unknow operation codes:%02X \n", opcode);
-		return -1;
+        dump();
+        isRunning = false;
+        return -1;
 		break;
 	}
-	return 0;
+    return cycle;
+}
+
+// 0 1 2 3 4 5 6 7
+// C Z I D B   V N
+void Cpu::setFlag(u8 type, bool val){
+    if(val){
+        reg_flag |= (u8)(((u8)1)<<type);
+    }else{
+        reg_flag &= ~(u8)(((u8)1)<<type);
+    }
+}
+
+bool Cpu::getFlag(u8 type){
+    return ((reg_flag >> type) & 1) > 0;
+}
+
+inline u8 Cpu::op_read_byte(){
+    return readByte(reg_pc++);
+}
+u16 Cpu::op_read_word(){
+    u16 word = readWord(reg_pc);
+    reg_pc += 2;
+    return word;
+}
+//	stack
+void Cpu::push_byte(u8 byte){
+    writeByte(STACK_ADDR(reg_s), byte);
+    if(reg_s < 0x03){
+        LOGW("stack overflow!\n");
+    }
+    --reg_s;
+}
+void Cpu::push_word(u16 word){
+    if(reg_s < 0x03){
+        LOGW("stack overflow!\n");
+    }
+    --reg_s;
+    writeWord(STACK_ADDR(reg_s), word);
+    --reg_s;
+}
+u16 Cpu::pop_word(){
+    ++reg_s;
+    u16 word = readWord(STACK_ADDR(reg_s));
+    ++reg_s;
+    return word;
+}
+u8 Cpu::pop_byte(){
+    ++reg_s;
+    return readByte(STACK_ADDR(reg_s));
 }
 
 /***************************         operations          *********************************/
 
-inline void op_LDA(u8 byte){
-	cpu.reg_a = byte;
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
+void Cpu::op_LDA(u8 byte){
+    reg_a = byte;
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 }
-inline void op_LDX(u8 byte){
-	cpu.reg_x = byte;
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
+void Cpu::op_LDX(u8 byte){
+    reg_x = byte;
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 }
-inline void op_LDY(u8 byte){
-	cpu.reg_y = byte;
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
-}
-
-inline void op_STA(u16 addr){
-	mem_write_byte(addr, cpu.reg_a);
-}
-inline void op_STX(u16 addr){
-	mem_write_byte(addr, cpu.reg_x);
-}
-inline void op_STY(u16 addr){
-	mem_write_byte(addr, cpu.reg_y);
+void Cpu::op_LDY(u8 byte){
+    reg_y = byte;
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 }
 
-inline void op_TAX(){
-	cpu.reg_x = cpu.reg_a;
-	SET_FLAG_N(cpu.reg_x);
-	SET_FLAG_Z(cpu.reg_x);
+inline void Cpu::op_STA(u16 addr){
+    writeByte(addr, reg_a);
 }
-inline void op_TXA(){
-	cpu.reg_a = cpu.reg_x;
-	SET_FLAG_N(cpu.reg_a);
-	SET_FLAG_Z(cpu.reg_a);
+inline void Cpu::op_STX(u16 addr){
+    writeByte(addr, reg_x);
 }
-inline void op_TAY(){
-	cpu.reg_y = cpu.reg_a;
-	SET_FLAG_N(cpu.reg_y);
-	SET_FLAG_Z(cpu.reg_y);
-}
-inline void op_TYA(){
-	cpu.reg_a = cpu.reg_y;
-	SET_FLAG_N(cpu.reg_a);
-	SET_FLAG_Z(cpu.reg_a);
-}
-inline void op_TXS(){
-	cpu.reg_s = cpu.reg_x;
-}
-inline void op_TSX(){
-	cpu.reg_x = cpu.reg_s;
-	SET_FLAG_N(cpu.reg_x);
-	SET_FLAG_Z(cpu.reg_x);
+inline void Cpu::op_STY(u16 addr){
+    writeByte(addr, reg_y);
 }
 
-inline void op_PHA(){
-	push_byte(cpu.reg_a);
+inline void Cpu::op_TAX(){
+    reg_x = reg_a;
+    SET_FLAG_N(reg_x);
+    SET_FLAG_Z(reg_x);
 }
-inline void op_PLA(){
-	cpu.reg_a = pop_byte();
-	SET_FLAG_N(cpu.reg_a);
-	SET_FLAG_Z(cpu.reg_a);
+inline void Cpu::op_TXA(){
+    reg_a = reg_x;
+    SET_FLAG_N(reg_a);
+    SET_FLAG_Z(reg_a);
 }
-inline void op_PHP(){
-	push_byte(cpu.reg_flag);
+inline void Cpu::op_TAY(){
+    reg_y = reg_a;
+    SET_FLAG_N(reg_y);
+    SET_FLAG_Z(reg_y);
 }
-inline void op_PLP(){
-	cpu.reg_flag = pop_byte();
+inline void Cpu::op_TYA(){
+    reg_a = reg_y;
+    SET_FLAG_N(reg_a);
+    SET_FLAG_Z(reg_a);
+}
+inline void Cpu::op_TXS(){
+    reg_s = reg_x;
+}
+inline void Cpu::op_TSX(){
+    reg_x = reg_s;
+    SET_FLAG_N(reg_x);
+    SET_FLAG_Z(reg_x);
 }
 
-u8 op_ASL(u8 byte){
-	set_flag(FLAG_C, (byte>>7)&1 > 0);	
+inline void Cpu::op_PHA(){
+    push_byte(reg_a);
+}
+inline void Cpu::op_PLA(){
+    reg_a = pop_byte();
+    SET_FLAG_N(reg_a);
+    SET_FLAG_Z(reg_a);
+}
+inline void Cpu::op_PHP(){
+    setFlag(FLAG_B, true);
+    push_byte(reg_flag);
+}
+inline void Cpu::op_PLP(){
+    reg_flag = pop_byte();
+    setFlag(FLAG_R, true);
+}
+
+u8 Cpu::op_ASL(u8 byte){
+    setFlag(FLAG_C, byte & 0x80);
 	byte = byte << 1;
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 	return byte;
 }
-u8 op_LSR(u8 byte){
-	set_flag(FLAG_C, byte&1 > 0);
+u8 Cpu::op_LSR(u8 byte){
+    setFlag(FLAG_C, byte & 1);
 	byte = byte >> 1;
-	byte &= ~(1<<7);
-	set_flag(FLAG_N, false);				//flag v must be false
-	SET_FLAG_Z(byte);
+//	byte &= ~(1<<7);
+//    setFlag(FLAG_N, false);				//flag v must be false
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
+    return byte;
 }
-u8 op_ROL(u8 byte){
-	set_flag(FLAG_C, (byte>>7)&1 > 0);
-	byte = byte << 1;
-	byte |= (u8)get_flag(FLAG_C);
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
+u8 Cpu::op_ROL(u8 byte){
+    if(getFlag(FLAG_C)){
+        setFlag(FLAG_C, byte & 0x80);
+        byte = byte << 1;
+        byte |= 0x01;
+    }else{
+        setFlag(FLAG_C, byte & 0x80);
+        byte = byte << 1;
+    }
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 	return byte;
 }
-u8 op_ROR(u8 byte){
-	set_flag(FLAG_C, (byte>>7)&1 > 0);
-	byte = byte >> 1;
-	byte |= ((u8)get_flag(FLAG_C)) << 7;
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
+u8 Cpu::op_ROR(u8 byte){
+    if(getFlag(FLAG_C)){
+        setFlag(FLAG_C, byte & 0x01);
+        byte = byte >> 1;
+        byte |= 0x80;
+    }else{
+        setFlag(FLAG_C, byte & 0x01);
+        byte = byte >> 1;
+    }
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 	return byte;
 }
 
-void op_ADC(u8 byte){
-	u16 res16 = (u16)byte + (u16)cpu.reg_a;
-	if(get_flag(FLAG_C))
+void Cpu::op_ADC(u8 byte){
+    u16 res16 = (u16)byte + (u16)reg_a;
+    if(getFlag(FLAG_C))
 		++res16;
-	set_flag(FLAG_C, res16> 0xff);
+    setFlag(FLAG_C, res16 > 0xff);
 	u8 res = (u8)res16;
-	set_flag(FLAG_V, ((0x80 & !(byte^cpu.reg_a))
-					&& ((res^byte) & 0x80)) );
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
-	cpu.reg_a=res;
+    setFlag(FLAG_V, ((~(byte^reg_a))& (res^reg_a) & 0x80) );
+    SET_FLAG_N(res);
+    SET_FLAG_Z(res);
+    reg_a = res;
 }
-void op_SBC(u8 byte){
+void Cpu::op_SBC(u8 byte){
 	byte = ~byte;
 	op_ADC(byte);
 }
-void op_CMP(u8 byte){
-	u16 res16 = (u16)cpu.reg_a - (u16)byte;
-	set_flag(FLAG_C, res16<0x100);
+void Cpu::op_CMP(u8 byte){
+    u16 res16 = (u16)reg_a - (u16)byte;
+    setFlag(FLAG_C, (res16&0x8000)==0);
 	byte=(u8)res16;
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 }
-void op_CPX(u8 byte){
-	u16 res16 = (u16)cpu.reg_x - (u16)byte;
-	set_flag(FLAG_C, res16<0x100);
+void Cpu::op_CPX(u8 byte){
+    u16 res16 = ((u16)reg_x) - ((u16)byte);
+    setFlag(FLAG_C, (res16&0x8000)==0);
 	byte=(u8)res16;
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 }
-void op_CPY(u8 byte){
-	u16 res16 = (u16)cpu.reg_x - (u16)byte;
-	set_flag(FLAG_C, res16<0x100);
+void Cpu::op_CPY(u8 byte){
+    u16 res16 = (u16)reg_y - (u16)byte;
+    setFlag(FLAG_C, (res16&0x8000)==0);
 	byte=(u8)res16;
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 }
 
-u8 op_INC(u8 byte){
+u8 Cpu::op_INC(u8 byte){
 	++byte;
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 	return byte;
 }
-void op_INX(){
-	cpu.reg_x++;
-	SET_FLAG_N(cpu.reg_x);
-	SET_FLAG_Z(cpu.reg_x);
+void Cpu::op_INX(){
+    reg_x++;
+    SET_FLAG_N(reg_x);
+    SET_FLAG_Z(reg_x);
 }
-void op_INY(){
-	cpu.reg_y++;
-	SET_FLAG_N(cpu.reg_y);
-	SET_FLAG_Z(cpu.reg_y);
+void Cpu::op_INY(){
+    reg_y++;
+    SET_FLAG_N(reg_y);
+    SET_FLAG_Z(reg_y);
 }
-u8 op_DEC(u8 byte){
+u8 Cpu::op_DEC(u8 byte){
 	--byte;
-	SET_FLAG_N(byte);
-	SET_FLAG_Z(byte);
+    SET_FLAG_N(byte);
+    SET_FLAG_Z(byte);
 	return byte;
 }
-void op_DEX(){
-	--cpu.reg_x;
-	SET_FLAG_N(cpu.reg_x);
-	SET_FLAG_Z(cpu.reg_x);
+void Cpu::op_DEX(){
+    --reg_x;
+    SET_FLAG_N(reg_x);
+    SET_FLAG_Z(reg_x);
 }
-void op_DEY(){
-	--cpu.reg_y;
-	SET_FLAG_N(cpu.reg_y);
-	SET_FLAG_Z(cpu.reg_y);
+void Cpu::op_DEY(){
+    --reg_y;
+    SET_FLAG_N(reg_y);
+    SET_FLAG_Z(reg_y);
 }
 	
-void op_SEC(){
-	set_flag(FLAG_C,true);
+void Cpu::op_SEC(){
+    setFlag(FLAG_C,true);
 }
-void op_SED(){
-	set_flag(FLAG_D,true);
+void Cpu::op_SED(){
+    setFlag(FLAG_D,true);
 }
-void op_SEI(){
-	set_flag(FLAG_I,true);
+void Cpu::op_SEI(){
+    setFlag(FLAG_I,true);
 }
-void op_CLC(){
-	set_flag(FLAG_C,false);
+void Cpu::op_CLC(){
+    setFlag(FLAG_C,false);
 }
-void op_CLD(){
-	set_flag(FLAG_D,false);
+void Cpu::op_CLD(){
+    setFlag(FLAG_D,false);
 }
-void op_CLV(){
-	set_flag(FLAG_V,false);
+void Cpu::op_CLV(){
+    setFlag(FLAG_V,false);
 }
-void op_CLI(){
-	set_flag(FLAG_I,false);
+void Cpu::op_CLI(){
+    setFlag(FLAG_I,false);
 }
-void op_AND(u8 byte){
-	cpu.reg_a &= byte;
-	SET_FLAG_N(cpu.reg_a);
-	SET_FLAG_Z(cpu.reg_a);
+void Cpu::op_AND(u8 byte){
+    reg_a &= byte;
+    SET_FLAG_N(reg_a);
+    SET_FLAG_Z(reg_a);
 }
-void op_ORA(u8 byte){
-	cpu.reg_a |= byte;
-	SET_FLAG_N(cpu.reg_a);
-	SET_FLAG_Z(cpu.reg_a);
+void Cpu::op_ORA(u8 byte){
+    reg_a |= byte;
+    SET_FLAG_N(reg_a);
+    SET_FLAG_Z(reg_a);
 }
-void op_EOR(u8 byte){
-	cpu.reg_a ^= byte;
-	SET_FLAG_N(cpu.reg_a);
-	SET_FLAG_Z(cpu.reg_a);
+void Cpu::op_EOR(u8 byte){
+    reg_a ^= byte;
+    SET_FLAG_N(reg_a);
+    SET_FLAG_Z(reg_a);
 }
-void op_BIT(u8 byte){
-	SET_FLAG_Z(cpu.reg_a & byte);
-	set_flag(FLAG_N, byte & 0x80);
-	set_flag(FLAG_V, byte & 0x40);
-}
-
-void op_JMP(u16 addr){
-	cpu.reg_pc = addr;
-}
-void op_BCC(){
-	if(!get_flag(FLAG_C))
-		op_JMP(addr_rel(op_read_byte()));
-}
-void op_BCS(){
-	if(get_flag(FLAG_C))
-		op_JMP(addr_rel(op_read_byte()));
-}
-void op_BEQ(){
-	if(get_flag(FLAG_Z))
-		op_JMP(addr_rel(op_read_byte()));
-}
-void op_BNE(){
-	if(!get_flag(FLAG_Z))
-		op_JMP(addr_rel(op_read_byte()));
-}
-void op_BVC(){
-	if(!get_flag(FLAG_V))
-		op_JMP(addr_rel(op_read_byte()));
-}
-void op_BVS(){
-	if(get_flag(FLAG_V))
-		op_JMP(addr_rel(op_read_byte()));
-}
-void op_BMI(){
-	if(get_flag(FLAG_N))
-		op_JMP(addr_rel(op_read_byte()));
-}
-void op_BPL(){
-	if(!get_flag(FLAG_N))
-		op_JMP(addr_rel(op_read_byte()));
+void Cpu::op_BIT(u8 byte){
+    SET_FLAG_Z(reg_a & byte);
+    setFlag(FLAG_N, byte & 0x80);
+    setFlag(FLAG_V, byte & 0x40);
 }
 
-void op_JSR(){
+void Cpu::op_JMP(u16 addr){
+    reg_pc = addr;
+}
+void Cpu::op_BCC(){
+    if(!getFlag(FLAG_C))
+		op_JMP(addr_rel(op_read_byte()));
+    else
+        reg_pc++;
+}
+void Cpu::op_BCS(){
+    if(getFlag(FLAG_C))
+		op_JMP(addr_rel(op_read_byte()));
+    else
+        reg_pc++;
+}
+void Cpu::op_BEQ(){
+    if(getFlag(FLAG_Z))
+		op_JMP(addr_rel(op_read_byte()));
+    else
+        reg_pc++;
+}
+void Cpu::op_BNE(){
+    if(!getFlag(FLAG_Z))
+		op_JMP(addr_rel(op_read_byte()));
+    else
+        reg_pc++;
+}
+void Cpu::op_BVC(){
+    if(!getFlag(FLAG_V))
+		op_JMP(addr_rel(op_read_byte()));
+    else
+        reg_pc++;
+}
+void Cpu::op_BVS(){
+    if(getFlag(FLAG_V))
+		op_JMP(addr_rel(op_read_byte()));
+    else
+        reg_pc++;
+}
+void Cpu::op_BMI(){
+    if(getFlag(FLAG_N))
+		op_JMP(addr_rel(op_read_byte()));
+    else
+        reg_pc++;
+}
+void Cpu::op_BPL(){
+    if(!getFlag(FLAG_N))
+        op_JMP(addr_rel(op_read_byte()));
+    else
+        reg_pc++;
+}
+
+void Cpu::op_JSR(){
 	u16 addr = op_read_word();
-	push_byte(cpu.reg_pc);
+    push_word(--reg_pc);
 	op_JMP(addr);
 }
-void op_RTS(){
-	op_JMP(pop_word());
+void Cpu::op_RTS(){
+    u16 addr = pop_word();
+    op_JMP(++addr);
 }
+void Cpu::op_RTI(){
+    reg_flag = pop_byte();
+    reg_pc = pop_word();
+}
+void Cpu::op_BRK(){
+    reg_pc++;
+    push_word(reg_pc);
+    setFlag(FLAG_B, 1);
+    push_byte(reg_flag);
+    setFlag(FLAG_I, 1);
+    reg_pc = readWord(ADDR_IRQ);
+}
+
 /****************************   Addressing functions    **********************************/
 
 //Immediate Addressing
@@ -1229,53 +1322,52 @@ void op_RTS(){
 //}
 
 //Direct Addressing
-u16 addr_abs(){
+u16 Cpu::addr_abs(){
 	u16 addr = op_read_word();
 	return addr;
 }
 
 //Zero page Addressing 
-u16 addr_zero(){
+u16 Cpu::addr_zero(){
 	u8 addr = op_read_byte();
 	return addr;
 }
 
 //Register Addressing
-u16 addr_reg(u8 reg){
+u16 Cpu::addr_reg(u8 reg){
 	return (u16)reg;
 }
 
 //Zero page Indexed Addressing 
-u16 addr_zero_reg(u8 reg){
-	u16 addr = (u16)op_read_byte();
+u16 Cpu::addr_zero_reg(u8 reg){
+    u8 addr = op_read_byte();
 	addr += reg;
-	return addr;
+    return (u8)addr;
 }
 
 //Direct Indexed Addressing 
-u16 addr_abs_reg(u8 reg){
+u16 Cpu::addr_abs_reg(u8 reg){
 	u16 addr = op_read_word();
 	addr += reg;
 	return addr;
 }
 
 // TODO need test
-u16 addr_rel(u8 addr){
-	return cpu.reg_pc +(u16)(s8)addr;						//fill high bits with the bit of sign
+u16 Cpu::addr_rel(u8 addr){
+    return reg_pc +(u16)(s8)addr;						//fill high bits with the bit of sign
 }
 //
-u16 addr_ind_x(){
-	u16 addr = (u16)op_read_byte();
-	addr += cpu.reg_x;
-	addr = mem_read_word(addr);
-	return addr;
+u16 Cpu::addr_ind_x(){
+    u8 addr = op_read_byte();
+    addr += reg_x;
+    return ((u16)readByte(addr))+(((u16)readByte((u8)(addr+1)))<<8);
 }
 
-u16 addr_ind_y(){
-	u16 addr = (u16)op_read_byte();
-	addr = mem_read_word(addr);
-	addr += cpu.reg_y;
-	return addr;
+u16 Cpu::addr_ind_y(){
+    u8 addr = op_read_byte();
+    u16 res = ((u16)readByte(addr))+(((u16)readByte((u8)(addr+1)))<<8);
+    res += reg_y;
+    return res;
 }
 
 //

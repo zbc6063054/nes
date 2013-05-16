@@ -10,3 +10,7 @@ typedef signed int s32;
 
 typedef unsigned char BYTE;
 
+#define ERROR   -1
+#define ERROR_OK 0
+
+#define BIT(b, x) (((b) & (1<<(x))) > 0)

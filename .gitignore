@@ -1,13 +1,27 @@
-# Compiled Object files
+*.o
 *.slo
 *.lo
-*.o
-
-# Compiled Dynamic libraries
 *.so
 *.dylib
-
-# Compiled Static libraries
 *.lai
 *.la
 *.a
+*.obj
+*.nes
+*.pdb
+*.aps
+*.sdf
+*.opensdf
+*.pro.user
+*.txt
+*.bak
+
+build/
+core/Debug/
+core/Release/
+windows/Debug/
+windows/Release/
+windows/ipch/
+windows/UI/Debug/
+windows/UI/Release/
+
