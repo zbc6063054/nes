@@ -49,8 +49,10 @@ inline void waitForThread(thread_handle handle){
 	pthread_join(handle, NULL);
 #endif
 #ifdef WIN32
-	if(WaitForSingleObject(handle, 1000) != WAIT_OBJECT_0){
-		LOGE("Thread wait error!\n");
+	int ret = 0;
+	if((ret = WaitForSingleObject(handle, 1000)) != WAIT_OBJECT_0){
+		LOGE("Thread wait %s error!\n", ret == WAIT_ABANDONED ? "WAIT_ABANDONED":
+										ret == WAIT_TIMEOUT ? "WAIT_TIMEOUT" : "WAIT_FAILED");
 	}
 #endif
 }

@@ -40,7 +40,6 @@
 
 #include <QtGui>
 #include "widget.h"
-#include "helper.h"
 
 #include "../core/nes.h"
 
@@ -79,7 +78,7 @@ void Widget::paintEvent(QPaintEvent *event)
 {
     QPainter painter;
     painter.begin(this);
-    painter.setRenderHint(QPainter::SmoothPixmapTransform);
+//    painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
     drawToImage(&screenImage);
     painter.drawImage(QRect(0, 0, this->width(), this->height()),

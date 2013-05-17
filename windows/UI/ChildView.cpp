@@ -47,7 +47,7 @@ struct {
 	{ 'N', Controller::KEY_SELECT } ,
 };
 
-// CChildView 消息处理程序
+// CChildView 
 
 BOOL CChildView::PreCreateWindow(CREATESTRUCT& cs) 
 {
@@ -66,7 +66,7 @@ BOOL CChildView::PreCreateWindow(CREATESTRUCT& cs)
 
 void CChildView::OnPaint() 
 {
-	CPaintDC dc(this); // 用于绘制的设备上下文
+	CPaintDC dc(this); 
 	CRect winRect;
 	this->GetClientRect(&winRect);
 
@@ -84,6 +84,9 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct){
 	mMemDc.CreateCompatibleDC(pDc);
 	mMemBitmap.CreateCompatibleBitmap(pDc, 256+16, 240);
 	mMemDc.SelectObject(mMemBitmap);
+
+	mMemDc.SetBkMode(TRANSPARENT);
+	mMemDc.SetTextColor(0xFFFFFF);
 	ReleaseDC(pDc);
 
 	nes.setRefreshFunc(RefreshFunc, this);
@@ -96,6 +99,10 @@ BOOL CChildView::OnEraseBkgnd(CDC* pDc){
 
 void CChildView::DrawToMem(){
 	mMemBitmap.SetBitmapBits((256+16)*240*4, nes.ppu->getScreenData());
+	CString strFps;
+	strFps.Format(TEXT("%0.2f"), nes.getFps());
+	mMemDc.TextOut(20, 10, strFps);
+//	mMemDc.DrawText(strFps, CRect(20, 20, 20, 20), DT_NOCLIP);
 }
 
 void CChildView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)

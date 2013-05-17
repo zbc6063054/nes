@@ -13,7 +13,7 @@ public:
 
 private:
     Nes *nes;
-    bool isRunning;
+    volatile bool isRunning;
     bool isPause;
     thread_handle handle;
     void (* func_refresh)(void * data);

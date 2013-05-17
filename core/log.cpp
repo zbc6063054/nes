@@ -7,7 +7,7 @@
 void log(LogType type, const char *format, ...){
 	va_list list;
 	va_start(list, format);
-#ifdef _DEBUG
+#if 0
 	vprintf(format, list);
 #else // Release
 	FILE *fp = fopen(LOG_FILE, "a+");

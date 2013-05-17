@@ -328,58 +328,62 @@ void PPU::scanline(){
         u8 count = 0;
         u32 *pScreenSp;
         for(int i=0; i<63; ++i, ++pSp){
-            if(!((currentLine >= (pSp->pos_y+1))&&
-                ((sp_y = currentLine - (pSp->pos_y + 1))<=sp_h) ))
+            if(!( ( currentLine >= (pSp->pos_y+1) )&&
+                ( (sp_y = currentLine - (pSp->pos_y + 1)) <=sp_h ) ))
                 continue;
             pScreenSp = pScreenline + pSp->pos_x + 8;           //skip the first column
-            addr_tile = (((u16)(reg_ctrl1&C1_SPCHRADDR))<<9) + (((u16)pSp->index) << 4);
             if(!(reg_ctrl1 & C1_SP16)){
             //for 8 x 8
+				addr_tile = (((u16)(reg_ctrl1&C1_SPCHRADDR))<<9) + (((u16)pSp->index) << 4);
                 if(pSp->attr & SP_VTLREV){
                     addr_tile += 7-sp_y;
                 }else{
                     addr_tile += sp_y;
                 }
-                sp_low = ppu_mem[addr_tile>>10][addr_tile&0x3FF];
-                sp_high = ppu_mem[addr_tile>>10][(addr_tile&0x3FF) + 8];
-                if(pSp->attr & SP_HTLREV){
-                    sp_low = revBit[sp_low];
-                    sp_high = revBit[sp_high];
-                }
-                sp_info = sp_high | sp_low;
-                u8* pPal = &spr_pattle[(pSp->attr&SP_HCOLOR) << 2];
-                {
-                    u8 ch = (sp_high&0xAA)|((sp_low&0xAA)>>1),
-                       cl = ((sp_high&0x55)<<1)|(sp_low&0x55);
-                    sp_buf[0] = pPal[ch>>6];
-                    sp_buf[2] = pPal[(ch>>4)&3];
-                    sp_buf[4] = pPal[(ch>>2)&3];
-                    sp_buf[6] = pPal[ch&3];
-                    sp_buf[1] = pPal[cl>>6];
-                    sp_buf[3] = pPal[(cl>>4)&3];
-                    sp_buf[5] = pPal[(cl>>2)&3];
-                    sp_buf[7] = pPal[cl&3];
-                }
-
-                u8 info = sp_info;
-                u8 addr_info_bg = (pSp->pos_x + (offset_x&0x07))>>3;
-                u8 info_bg = ((((u16)bg_info[addr_info_bg]) << 8) | ((u16)bg_info[addr_info_bg + 1]))
-                        >> (7 - ((pSp->pos_x + (offset_x&0x07)) & 0x07));
-                if((i==0) && (!(reg_status&STATUS_HIT0)) && (sp_info&info_bg)){
-                    reg_status |= STATUS_HIT0;
-                }
-                if((pSp->attr & SP_PRIORITY)){
-                    info &= ~ info_bg;
-                }
-                for(int j=0; j<8; j++, pScreenSp++){
-                    if((info>>(7-j))&1){
-                        *pScreenSp = sysColorMap[ sp_buf[j] ];
-                    }
-                }
             }else{
-            //for 8 x 16 TODO
-                LOGE("unsupport tile size 8*16 !\n");
+            //for 8 x 16 
+				addr_tile = ((pSp->index & 1)<<12) + (((u16)(pSp->index&0xFE))<<4);
+				if(!(pSp->attr & SP_VTLREV)){
+					addr_tile += ((sp_y&0x08) << 1)+ (sp_y & 0x07);
+				}else{
+					addr_tile += ((~(sp_y&0x08)) << 1) + 7-(sp_y & 0x07);
+				}
             }
+			sp_low = ppu_mem[addr_tile>>10][addr_tile&0x3FF];
+			sp_high = ppu_mem[addr_tile>>10][(addr_tile&0x3FF) + 8];
+			if(pSp->attr & SP_HTLREV){
+				sp_low = revBit[sp_low];
+				sp_high = revBit[sp_high];
+			}
+			sp_info = sp_high | sp_low;
+			u8* pPal = &spr_pattle[(pSp->attr&SP_HCOLOR) << 2];
+			{
+				u8 ch = (sp_high&0xAA)|((sp_low&0xAA)>>1),
+				   cl = ((sp_high&0x55)<<1)|(sp_low&0x55);
+				sp_buf[0] = pPal[ch>>6];
+				sp_buf[2] = pPal[(ch>>4)&3];
+				sp_buf[4] = pPal[(ch>>2)&3];
+				sp_buf[6] = pPal[ch&3];
+				sp_buf[1] = pPal[cl>>6];
+				sp_buf[3] = pPal[(cl>>4)&3];
+				sp_buf[5] = pPal[(cl>>2)&3];
+				sp_buf[7] = pPal[cl&3];
+			}
+			u8 info = sp_info;
+			u8 addr_info_bg = (pSp->pos_x + (offset_x&0x07))>>3;
+			u8 info_bg = ((((u16)bg_info[addr_info_bg]) << 8) | ((u16)bg_info[addr_info_bg + 1]))
+				>> (7 - ((pSp->pos_x + (offset_x&0x07)) & 0x07));
+			if((i==0) && (!(reg_status&STATUS_HIT0)) && (sp_info&info_bg)){
+				reg_status |= STATUS_HIT0;
+			}
+			if((pSp->attr & SP_PRIORITY)){
+				info &= ~ info_bg;
+			}
+			for(int j=0; j<8; j++, pScreenSp++){
+				if((info>>(7-j))&1){
+					*pScreenSp = sysColorMap[ sp_buf[j] ];
+				}
+			}
             ++count;
             if(count > 8){
  //               reg_status |= STATUS_SPCNT;
