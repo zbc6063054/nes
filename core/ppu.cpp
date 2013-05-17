@@ -327,7 +327,7 @@ void PPU::scanline(){
         u8 sp_buf[8];
         u8 count = 0;
         u32 *pScreenSp;
-        for(int i=0; i<63; ++i, ++pSp){
+        for(int i=0; i<64; ++i, ++pSp){
             if(!( ( currentLine >= (pSp->pos_y+1) )&&
                 ( (sp_y = currentLine - (pSp->pos_y + 1)) <=sp_h ) ))
                 continue;
