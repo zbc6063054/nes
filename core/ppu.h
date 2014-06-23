@@ -2,11 +2,11 @@
 
 #include "../global.h"
 
-#define CYCLES_SCANLINE 140
+#define CYCLES_SCANLINE 114
 #define TOTAL_SCAMLINE	262
 
 #define C1_NMI 			0x80
-#define C1_SP16        0x20
+#define C1_SP16         0x20
 #define C1_BGCHRADDR 	0x10
 #define C1_SPCHRADDR 	0x08
 #define C1_ADDRINC32	0x04
@@ -84,12 +84,16 @@ public:
     void scanline();
     void setScanline(int line);
     void renderTile(u8 index, u8 attr, u32 *pScreen, u8* pattle, u16 addr_base);
-    void drawPattern(u8 attr, u32 *pScreen);
+    void drawPattern(u8 attr, u32 *pScreen, u16 addr_base);
     void drawSprite(u32 *pScreen);
     void drawNameTable(u32 *pScreen, u8 tableIndex);
+	void tileRenderFrame(u32 *pScreen);
 
+	void frameStart();
     void vBlankStart();
     void vBlankEnd();
+	void nextVRamAddr();
+	void scanlineStart();
 
     inline const u32* getScreenData(){
         return screen_mem;

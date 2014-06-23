@@ -7,12 +7,11 @@
 void log(LogType type, const char *format, ...){
 	va_list list;
 	va_start(list, format);
-#if 0
+#if _DEBUG
 	vprintf(format, list);
-#else // Release
+#endif
 	FILE *fp = fopen(LOG_FILE, "a+");
 	vfprintf(fp, format, list);
 	fclose(fp);
-#endif // _DEBUG
 	va_end(list);
 }

@@ -54,24 +54,16 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (!m_wndStatusBar.Create(this))
 	{
 		TRACE0("Î´ÄÜ´´½¨×´Ì¬À¸\n");
-		return -1;      
+		return -1;
 	}
-	m_wndStatusBar.SetIndicators(indicators, sizeof(indicators)/sizeof(UINT));
+	m_wndStatusBar.SetIndicators(indicators, sizeof(indicators) / sizeof(UINT));
 
-	CRect cRect(0, 0, 256, 240);
-	cRect.bottom += ::GetSystemMetrics(SM_CYMENU) + ::GetSystemMetrics(SM_CYCAPTION) 
-					+ ::GetSystemMetrics(SM_CYEDGE)*2;
-	cRect.right += ::GetSystemMetrics(SM_CXEDGE)*2;
-	CalcWindowRect(&cRect, CWnd::adjustBorder);
-	CRect wRect;
-	GetWindowRect(&wRect);
-	MoveWindow(wRect.left, wRect.top, cRect.Width(), cRect.Height(), FALSE);
 	return 0;
 }
 
 BOOL CMainFrame::PreCreateWindow(CREATESTRUCT& cs)
 {
-	if( !CFrameWnd::PreCreateWindow(cs) )
+	if (!CFrameWnd::PreCreateWindow(cs))
 		return FALSE;
 
 	cs.dwExStyle &= ~WS_EX_CLIENTEDGE;
@@ -111,18 +103,21 @@ BOOL CMainFrame::OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO*
 
 void CMainFrame::OnFileOpen()
 {
-	OPENFILENAME file;
-	TCHAR szFilter[] = TEXT("Nes Files (*.nes)|*.nes");
+	TCHAR szFilter[] = TEXT("Nes Files (*.nes)|*.nes|");
 
 	nes.pause();
 	CFileDialog dialog(true, NULL, NULL, 6UL, szFilter, this);
-	if( dialog.DoModal() == IDCANCEL ){
+	if (dialog.DoModal() == IDCANCEL){
 		nes.resume();
 		return;
 	}
 	nes.stop();
 	USES_CONVERSION;
-	nes.loadFile(W2CA(dialog.m_ofn.lpstrFile));
+	int ret = nes.loadFile(W2CA(dialog.m_ofn.lpstrFile));
+	if (ret != NES_ERROR_OK){
+		AfxMessageBox(CA2W(GetErrorString(ret)), MB_OK | MB_ICONINFORMATION);
+		return;
+	}
 	nes.reset();
 	nes.start();
 }

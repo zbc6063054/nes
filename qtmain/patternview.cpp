@@ -21,19 +21,23 @@ PatternView::PatternView(QWidget *parent) :
         currentView = this;
     }
     patternAttr = 0;
-    setFixedSize(PATTERN_WIDTH*16*PATTERN_SCALE, PATTERN_HEIGHT*16*PATTERN_SCALE);
-    drawToImage(patternImage);
+    setFixedSize(PATTERN_WIDTH*16*PATTERN_SCALE, PATTERN_HEIGHT*16*PATTERN_SCALE*2);
     setWindowTitle(tr("Pattern View"));
 }
 
 void PatternView::drawToImage(QImage &image){
-    nes.ppu->drawPattern(patternAttr, (u32 *)image.bits());
 }
 
 void PatternView::paintEvent(QPaintEvent *event){
     QPainter painter;
     painter.begin(this);
+    nes.ppu->drawPattern(patternAttr, (u32 *)patternImage.bits(), 0x00);
     painter.drawImage(QRect(0, 0, PATTERN_WIDTH*16*PATTERN_SCALE, PATTERN_HEIGHT*16*PATTERN_SCALE),
+                      patternImage, QRect(0, 0, patternImage.width(), patternImage.height()));
+
+    nes.ppu->drawPattern(patternAttr, (u32 *)patternImage.bits(), 0x1000);
+    painter.drawImage(QRect(0, PATTERN_HEIGHT*16*PATTERN_SCALE,
+                            PATTERN_WIDTH*16*PATTERN_SCALE, PATTERN_HEIGHT*16*PATTERN_SCALE),
                       patternImage, QRect(0, 0, patternImage.width(), patternImage.height()));
     painter.end();
 }

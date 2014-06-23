@@ -1,11 +1,12 @@
 #include "memmap.h"
 #include "nes.h"
 #include "ppu.h"
+#include "cpu.h"
 #include "controller.h"
-
+#include "mapper/mapper.h"
 
 StructMemMap MemMap::mapper[]= {
-	   { 0x4100, 0xFFFF, MEMMAP_FUNCTION, (void *)rom_access_func },
+	   { 0x8000, 0xFFFF, MEMMAP_FUNCTION, (void *)rom_access_func },
        { 0, 0x1FFF, MEMMAP_FUNCTION, (void *)cpu_access_func },
        { 0x2000, 0x3FFF, MEMMAP_FUNCTION, (void *)ppu_access_func },
        { 0x4000, 0x40FF, MEMMAP_FUNCTION, (void *)reg_access_func },
@@ -21,7 +22,6 @@ MemMap::MemMap(Nes *parent)
 
 void MemMap::init(){
     mem_init();
-    set_mem_block(0, 8, chr_rom);
 }
 
 void MemMap::reset(){
@@ -93,7 +93,12 @@ void MemMap::ctl_access_func(MemMap *map, u16 addr, u8& byte, AccessType type){
 void MemMap::reg_access_func(MemMap *map, u16 addr, u8& byte, AccessType type){
     switch(addr){
         case 0x4014:
-            DMA(byte);
+			if(type == MEMWRITE){
+				DMA(byte);
+				map->nes->cpu->preCycles += CYCLES_DMA;
+			}else{
+				byte = addr & 0xFF;
+			}
             break;
         case 0x4016:
         case 0x4017:
@@ -113,12 +118,12 @@ void MemMap::reg_access_func(MemMap *map, u16 addr, u8& byte, AccessType type){
     }
 }
 
+
 //TODO
 void MemMap::rom_access_func(MemMap *map, u16 addr, u8& byte, AccessType type){
     if(type == MEMREAD){
-        byte = prg_rom[addr - 0x8000];
+        byte = PRG_ROM(addr - 0x8000);
     }else{
-        LOGW("access readonly rom address %04X !\n", addr);
+        map->nes->rom->getMapper()->writeByte(addr, byte);
     }
-    //do nothing when require write
 }

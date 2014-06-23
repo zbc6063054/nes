@@ -13,6 +13,8 @@ struct {
     void *notifyData;
 } debug_info;
 
+static u16 lastPc = 0;
+
 void debug::cpu_break(Cpu *cpu){
     if(debug_info.isMustBreak){
         debug_info.isMustBreak = false;
@@ -105,4 +107,12 @@ int debug::get_breakarr(u16 arr[]){
 
 bool debug::isBreaked(){
     return debug_info.isBreaked;
+}
+
+void debug::setLastPc(u16 addr){
+    lastPc = addr;
+}
+
+u16 debug::getLastPc(){
+    return lastPc;
 }

@@ -56,8 +56,6 @@ BOOL CChildView::PreCreateWindow(CREATESTRUCT& cs)
 
 	cs.dwExStyle |= WS_EX_CLIENTEDGE;
 	cs.style &= ~WS_BORDER;
-	cs.cx = 256;
-	cs.cy = 240;
 	cs.lpszClass = AfxRegisterWndClass(CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS, 
 		::LoadCursor(NULL, IDC_ARROW), reinterpret_cast<HBRUSH>(COLOR_WINDOW+1), NULL);
 
@@ -84,7 +82,6 @@ int CChildView::OnCreate(LPCREATESTRUCT lpCreateStruct){
 	mMemDc.CreateCompatibleDC(pDc);
 	mMemBitmap.CreateCompatibleBitmap(pDc, 256+16, 240);
 	mMemDc.SelectObject(mMemBitmap);
-
 	mMemDc.SetBkMode(TRANSPARENT);
 	mMemDc.SetTextColor(0xFFFFFF);
 	ReleaseDC(pDc);
@@ -102,11 +99,17 @@ void CChildView::DrawToMem(){
 	CString strFps;
 	strFps.Format(TEXT("%0.2f"), nes.getFps());
 	mMemDc.TextOut(20, 10, strFps);
-//	mMemDc.DrawText(strFps, CRect(20, 20, 20, 20), DT_NOCLIP);
 }
 
 void CChildView::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+	CRect wRect, cRect;
+	GetParent()->GetWindowRect(&wRect);
+	GetClientRect(&cRect);
+	wRect.bottom += 240 - cRect.Height();
+	wRect.right += 256 - cRect.Width();
+	GetParent()->MoveWindow(wRect.left, wRect.top, wRect.Width(), wRect.Height(), FALSE);
+
 	int len = sizeof(keyMapper) / sizeof(keyMapper[0]);
 	int i = 0;
 	for(i=0; i<len; i++){

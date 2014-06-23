@@ -45,5 +45,3 @@ win32:CONFIG(release, debug|release): PRE_TARGETDEPS += $$OUT_PWD/release/core.l
 else:win32:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$OUT_PWD/debug/core.lib
 else:unix: PRE_TARGETDEPS += $$OUT_PWD/libcore.a
 
-QMAKE_CXXFLAGS += -pg
-QMAKE_CFLAGS_DEBUG += -pg

@@ -16,7 +16,12 @@ SOURCES += \
     ../core/threadutil.cpp \
     ../core/log.cpp \
     ../core/debug.cpp \
-    ../core/test.cpp
+    ../core/test.cpp \
+    ../core/mapper/mapper.cpp \
+    ../core/mapper/mapper0.cpp \
+    ../core/mapper/mapper1.cpp \
+    ../core/mapper/mapper2.cpp \
+    ../core/asm.cpp
 
 HEADERS += \
     ../core/ppu.h \
@@ -31,7 +36,11 @@ HEADERS += \
     ../core/threadutil.h \
     ../core/log.h \
     ../core/debug.h \
-    ../core/test.h
+    ../core/test.h \
+    ../core/mapper/mapper.h \
+    ../core/mapper/mapper0.h \
+    ../core/mapper/mapperunit.h \
+    ../core/mapper/mapper1.h \
+    ../core/mapper/mapper2.h \
+    ../core/asm.h
 
-QMAKE_CXXFLAGS += -pg
-QMAKE_CFLAGS_DEBUG += -pg

@@ -9,15 +9,17 @@
 #define LOGI(arg...)         LOG(LOG_INFO, arg)
 #define LOGW(arg...)         LOG(LOG_WARN, arg)
 #define LOGE(arg...)         LOG(LOG_ERROR, arg)
+#define LOG_ON(b, arg...)	 if(b) { LOGW(arg) ;}
 #define ASSERT(arg...)       assert(arg)
 #endif //linux
 
 #ifdef WIN32
-#define LOG(type, ...)    log(type, __VA_ARGS__)
-#define LOGI(...)         LOG(LOG_INFO, __VA_ARGS__)
-#define LOGW(...)         LOG(LOG_WARN, __VA_ARGS__)
-#define LOGE(...)         LOG(LOG_ERROR, __VA_ARGS__)
-#define ASSERT(...)       assert(__VA_ARGS__)
+#define LOG(type, ...)		log(type, __VA_ARGS__)
+#define LOGI(...)			LOG(LOG_INFO, __VA_ARGS__)
+#define LOGW(...)			LOG(LOG_WARN, __VA_ARGS__)
+#define LOGE(...)			LOG(LOG_ERROR, __VA_ARGS__)
+#define LOG_ON(b, ...)		if(b) { LOGW(__VA_ARGS__) ;}
+#define ASSERT(...)			assert(__VA_ARGS__)
 #endif
 
 

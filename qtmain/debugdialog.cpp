@@ -14,8 +14,29 @@
 #include "../core/cpu.h"
 #include "../core/ppu.h"
 #include "../core/debug.h"
+#include "../core/asm.h"
 
 #define STATESTR(s, f, x)   tr(s).append(QString().sprintf(f, x))
+
+//the opsize table is used to quickly grab the instruction sizes (in bytes)
+const u8 opsize[256] = {
+/*0x00*/	1,2,0,0,0,2,2,0,1,2,1,0,0,3,3,0,
+/*0x10*/	2,2,0,0,0,2,2,0,1,3,0,0,0,3,3,0,
+/*0x20*/	3,2,0,0,2,2,2,0,1,2,1,0,3,3,3,0,
+/*0x30*/	2,2,0,0,0,2,2,0,1,3,0,0,0,3,3,0,
+/*0x40*/	1,2,0,0,0,2,2,0,1,2,1,0,3,3,3,0,
+/*0x50*/	2,2,0,0,0,2,2,0,1,3,0,0,0,3,3,0,
+/*0x60*/	1,2,0,0,0,2,2,0,1,2,1,0,3,3,3,0,
+/*0x70*/	2,2,0,0,0,2,2,0,1,3,0,0,0,3,3,0,
+/*0x80*/	0,2,0,0,2,2,2,0,1,0,1,0,3,3,3,0,
+/*0x90*/	2,2,0,0,2,2,2,0,1,3,1,0,0,3,0,0,
+/*0xA0*/	2,2,2,0,2,2,2,0,1,2,1,0,3,3,3,0,
+/*0xB0*/	2,2,0,0,2,2,2,0,1,3,1,0,3,3,3,0,
+/*0xC0*/	2,2,0,0,2,2,2,0,1,2,1,0,3,3,3,0,
+/*0xD0*/	2,2,0,0,0,2,2,0,1,3,0,0,0,3,3,0,
+/*0xE0*/	2,2,0,0,2,2,2,0,1,2,1,0,3,3,3,0,
+/*0xF0*/	2,2,0,0,0,2,2,0,1,3,0,0,0,3,3,0
+};
 
 extern Nes nes;
 
@@ -54,7 +75,7 @@ DebugDialog::DebugDialog(QWidget *parent) :
     connect(listBreak, SIGNAL(clicked(QModelIndex)), this, SLOT(onListBreakSelect(QModelIndex)));
 
     debug::set_notify_func(debugBreak, this);
-    refreshData();
+//    refreshData();
 }
 
 void DebugDialog::closeEvent(QCloseEvent *){
@@ -76,6 +97,12 @@ void DebugDialog::refreshCpu(){
         labelCpustate->setText("Stopped");
     }
 
+	QString buf;
+	for(u8 i = nes.cpu->reg_s+1; i!=0; ++i){
+		buf += QString().sprintf("%02X ", nes.readByte(STACK_ADDR(i)));
+	}
+	txtStack->setText(buf);
+	labelCycles->setText(QString().sprintf("%d", nes.cpu->cycles + nes.getTotalCycles()));
     if(modelCpu == NULL){
         modelCpu = new QStringListModel();
         listCpu->setModel(modelCpu);
@@ -116,13 +143,22 @@ void DebugDialog::refreshSource(){
     if(modelSource == NULL){
         modelSource = new QStringListModel();
         listSource->setModel(modelSource);
-        listSource->setFont(QFont("Andale Mono"));
-    }
-    if( sourceFileName.isNull() )
+#ifdef WIN32
+		listSource->setFont(QFont("Courier New"));
+#else
+		listSource->setFont(QFont("Andale Mono"));
+#endif
+		addrSourceStart = debug::getLastPc();
+        readSource(NULL, debug::getLastPc(), debug::getLastPc()+30, 0);
+        std::map<int, int>::iterator it = mapSource.find(nes.cpu->reg_pc);
+        if(it != mapSource.end()){
+            listSource->setCurrentIndex(modelSource->index(it->second, 0));
+        }
         return;
-    u16 addr = nes.cpu->reg_pc;
+    }
+    u16 addr = debug::getLastPc();
     if( addr < addrSourceStart ){
-        readSource(sourceFileName, (addr-30)>0 ? addr-30 : 0, addrSourceStart, 0);
+        readSource(sourceFileName, addr, addrSourceStart, 0);
         listSource->verticalScrollBar()->setMinimum(addrSourceStart);
         listSource->verticalScrollBar()->setMaximum(addrSourceEnd);
     }else if( addr >= addrSourceEnd ){
@@ -184,50 +220,64 @@ void DebugDialog::refreshData(){
 }
 
 int DebugDialog::readSource(const QString &filename, int addrStart, int addrEnd, int insertPos){
-    QFile file(filename);
-    if(!file.open(QFile::ReadOnly | QFile::Text)){
-        LOGE("open source file failed! \n");
-        return -1;
-    }
-    sourceFileName = filename;
-    QTextStream reader(&file);
-    QString buf, null, buf_addr;
-    bool find = false;
+//    QFile file(filename);
+//    if(!file.open(QFile::ReadOnly | QFile::Text)){
+//        LOGE("open source file failed! \n");
+//        return -1;
+//    }
+//    sourceFileName = filename;
+//    QTextStream reader(&file);
+//    QString buf, null, buf_addr;
+//    bool find = false;
+//    QStringList list = modelSource->stringList();
+//    while( !( buf = reader.readLine() ).isNull() ){
+//        u32 addr = 0;
+//        QTextStream out(&buf);
+//        buf_addr = buf.left(buf.indexOf(":"));
+//        bool ok = false;
+//        addr = buf_addr.toUInt(&ok, 16);
+//        if(!ok){
+//            LOGE("read source address failed!\n");
+//        }
+//        out >> null;
+//        addr += -16 + 0x8000;                        //the nes header
+//        if( !find ){
+//            if( addr > addrStart){
+//                find = true;
+//                char hex[8], op[8], num[16];
+//                out >> hex >> op >> num;
+//                mapSource.insert(std::pair<int, int>(addr, insertPos));
+//                list.insert(insertPos++, QString().sprintf("%04X:%-7s %-4s %-8s", addr, hex, op, num));
+//                addrSourceStart = addrSourceStart < addr ?
+//                            addrSourceStart : addr;
+//                addrSourceEnd = addrSourceEnd > addr ?
+//                            addrSourceEnd : addr;
+//            }
+//        }else{
+//            if( addr < addrEnd){
+//                char hex[8], op[8], num[16];
+//                out >> hex >> op >> num;
+//                mapSource.insert(std::pair<int, int>(addr, insertPos));
+//                list.insert(insertPos++, QString().sprintf("%04X:%-7s %-4s %-8s", addr, hex, op, num));
+//                addrSourceEnd = addrSourceEnd > addr ?
+//                            addrSourceEnd : addr;
+//            }
+//        }
+//    }
+    u16 addr = addrStart;
+    addrSourceStart = addrSourceStart < addr ?
+                      addrSourceStart : addr;
     QStringList list = modelSource->stringList();
-    while( !( buf = reader.readLine() ).isNull() ){
-        u32 addr = 0;
-        QTextStream out(&buf);
-        buf_addr = buf.left(buf.indexOf(":"));
-        bool ok = false;
-        addr = buf_addr.toUInt(&ok, 16);
-        if(!ok){
-            LOGE("read source address failed!\n");
-        }
-        out >> null;
-        addr += -16 + 0x8000;                        //the nes header
-        if( !find ){
-            if( addr > addrStart){
-                find = true;
-                char hex[8], op[8], num[16];
-                out >> hex >> op >> num;
-                mapSource.insert(std::pair<int, int>(addr, insertPos));
-                list.insert(insertPos++, QString().sprintf("%04X:%-7s %-4s %-8s", addr, hex, op, num));
-                addrSourceStart = addrSourceStart < addr ?
-                            addrSourceStart : addr;
-                addrSourceEnd = addrSourceEnd > addr ?
-                            addrSourceEnd : addr;
-            }
-        }else{
-            if( addr < addrEnd){
-                char hex[8], op[8], num[16];
-                out >> hex >> op >> num;
-                mapSource.insert(std::pair<int, int>(addr, insertPos));
-                list.insert(insertPos++, QString().sprintf("%04X:%-7s %-4s %-8s", addr, hex, op, num));
-                addrSourceEnd = addrSourceEnd > addr ?
-                            addrSourceEnd : addr;
-            }
-        }
+    while(addr < addrEnd){
+//        ASSERT(addr >= 0x8000);
+        u8 code[] = { nes.readByte(addr), nes.readByte(addr + 1), nes.readByte(addr + 2) };
+        char* string = Disassemble(addr, code);
+        mapSource.insert(std::pair<int, int>(addr, insertPos));
+        list.insert(insertPos++, QString().sprintf("%04X:    %s", addr, string));
+		addr += opsize[code[0]] == 0 ? 1:opsize[code[0]];
     }
+    addrSourceEnd = addrSourceEnd > addr ?
+                addrSourceEnd : addr;
     modelSource->removeRows(0, modelCpu->rowCount());
     modelSource->setStringList(list);
     return 0;

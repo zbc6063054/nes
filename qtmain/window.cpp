@@ -103,7 +103,7 @@ void Window::viewNameTable(){
 
 void Window::fileOpen(){
     QString file = QFileDialog::getOpenFileName(this, tr("open nes file"),
-                                 tr("~"), tr("nes file (*.nes)"));
+                                 NULL, tr("nes file (*.nes)"));
     if( !file.isNull() ){
         nes.stop();
         nes.loadFile((const char *)file.toLocal8Bit());

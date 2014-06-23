@@ -2,6 +2,8 @@
 #include "../global.h"
 #include "nes.h"
 
+#define CYCLES_DMA 513
+
 #define FLAG_C 0
 #define FLAG_Z 1
 #define FLAG_I 2
@@ -37,12 +39,16 @@ public:
     u8 reg_y;						//register c
     u8 reg_s;
     u8 reg_flag;					//flag
-    bool isNMI;
+    int nmi_count;
     bool isIRQ;
     bool isRunning;
     u16 reg_pc;						//register pc
     bool isReset;
     bool isSleep;
+	int preCycles;
+	int cycles;
+	bool isWrap;
+	bool isWrapAdd;
 
     Nes *nes;
 
@@ -124,14 +130,15 @@ public:
 
 private:
     inline u8 readByte(u16 addr){
-//		return 0xA9;
-        return nes->readByte(addr);
+		u8 byte = nes->readByte(addr);
+		extern bool boutput;
+		if(addr == 0x4016 && byte == 0x41) boutput = true;
+        return byte;
     }
     inline void writeByte(u16 addr, u8 byte){
         nes->writeByte(addr, byte);
     }
     inline u16 readWord(u16 addr){
-//		return 0;
         return nes->readWord(addr);
     }
     inline void writeWord(u16 addr, u16 word){

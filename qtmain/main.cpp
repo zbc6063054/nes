@@ -16,9 +16,9 @@ void SystemInit(){
     nes.init();
 //    nes.loadFile("mario.nes");
 //    nes.loadFile("test123234.nes");
-    nes.loadFile("wings.nes");
-    nes.reset();
-    nes.start();
+//    nes.loadFile("wings.nes");
+//    nes.reset();
+//    nes.start();
 
 }
 
@@ -27,6 +27,7 @@ int main(int argc, char *argv[])
 #ifdef WIN32
     LOGI("it's windows system!\n");
 #endif
+    int *a = new int[100];
     SystemInit();
     test();
     QApplication app(argc, argv);

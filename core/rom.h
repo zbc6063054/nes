@@ -14,27 +14,37 @@ typedef struct struct_file_header{
     int mapper_type;
 } FileHeader;
 
+class Mapper;
 class Nes;
 
 class Rom
 {
 public:
     Rom(Nes *parent);
+    ~Rom();
 
 private:
     FileHeader header;
     Nes *nes;
+    Mapper* mapper;
+    u8 *pPrgRom;
+    u8 *pChrRom;
     bool isLoadFile;
 
 private:
     int getHead(FILE *fp, FileHeader& head);
-    void loadPrg(FILE *fp, const FileHeader &head);
-    void loadChr(FILE *fp, const FileHeader &head);
+    u8* loadPrg(FILE *fp, const FileHeader &head);
+    u8* loadChr(FILE *fp, const FileHeader &head);
 
 public:
     int readFile(const char *file);
+    void deleteRom();
+    void reset();
     inline bool getLoadState(){
         return isLoadFile;
+    }
+    inline Mapper* getMapper(){
+        return mapper;
     }
 };
 

@@ -1,7 +1,4 @@
 
-// nes.cpp : 定义应用程序的类行为。
-//
-
 #include "stdafx.h"
 #include "afxwinappex.h"
 #include "afxdialogex.h"
@@ -11,14 +8,15 @@
 #include <io.h>
 #include <fcntl.h>
 
-#ifdef _DEBUG
-#pragma comment( lib, "../debug/core.lib" )
-#else
-#pragma comment( lib, "../Release/core.lib" )
-#endif
+//#ifdef _DEBUG
+//#pragma comment( lib, "../debug/core.lib" )
+//#else
+//#pragma comment( lib, "../Release/core.lib" )
+//#endif
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
+#include <vld.h>
 #endif
 
 Nes nes;
@@ -46,7 +44,9 @@ CnesApp::CnesApp()
 #ifdef _MANAGED
 	System::Windows::Forms::Application::SetUnhandledExceptionMode(System::Windows::Forms::UnhandledExceptionMode::ThrowException);
 #endif
-
+#ifdef _DEBUG
+	InitConsole();
+#endif
 	//CompanyName.ProductName.SubProduct.VersionInformation
 	SetAppID(_T("nes.AppID.NoVersion"));
 }

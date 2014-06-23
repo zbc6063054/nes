@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="源文件\Mapper">
+      <UniqueIdentifier>{d76631fc-8f71-4ec1-a659-d47a41cad56b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\Mapper">
+      <UniqueIdentifier>{7816aabe-143f-4824-a1af-ff0f7fd20c38}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="controller.cpp">
@@ -51,6 +57,21 @@
     <ClCompile Include="threadutil.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="mapper\mapper.cpp">
+      <Filter>源文件\Mapper</Filter>
+    </ClCompile>
+    <ClCompile Include="mapper\mapper0.cpp">
+      <Filter>源文件\Mapper</Filter>
+    </ClCompile>
+    <ClCompile Include="..\global.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="mapper\mapper1.cpp">
+      <Filter>源文件\Mapper</Filter>
+    </ClCompile>
+    <ClCompile Include="mapper\mapper2.cpp">
+      <Filter>源文件\Mapper</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="controller.h">
@@ -88,6 +109,24 @@
     </ClInclude>
     <ClInclude Include="threadutil.h">
       <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="mapper\mapper.h">
+      <Filter>头文件\Mapper</Filter>
+    </ClInclude>
+    <ClInclude Include="mapper\mapper0.h">
+      <Filter>头文件\Mapper</Filter>
+    </ClInclude>
+    <ClInclude Include="mapper\mapperunit.h">
+      <Filter>头文件\Mapper</Filter>
+    </ClInclude>
+    <ClInclude Include="..\global.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="mapper\mapper1.h">
+      <Filter>头文件\Mapper</Filter>
+    </ClInclude>
+    <ClInclude Include="mapper\mapper2.h">
+      <Filter>头文件\Mapper</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

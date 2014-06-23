@@ -17,11 +17,6 @@
 *.bak
 
 build/
-core/Debug/
-core/Release/
-windows/Debug/
-windows/Release/
-windows/ipch/
-windows/UI/Debug/
-windows/UI/Release/
+test/
+
 

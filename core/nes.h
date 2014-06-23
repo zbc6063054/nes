@@ -42,6 +42,11 @@ private:
     int fpsLoop;
     timemark fpsStart;
     timemark fpsEnd;
+	long totalCycles;
+	int currLine;
+
+	void _reset();
+	void _dump();
 
 public:
     inline u8 readByte(u16 addr){
@@ -67,13 +72,15 @@ public:
     inline const u32* getScreenData(){
         return ppu->getScreenData();
     }
-    inline void loadFile(const char *filename){
-        rom->readFile(filename);
+    inline int loadFile(const char *filename){
+        return rom->readFile(filename);
     }
     inline float getFps(){
         return fps;
     }
-
+	inline long getTotalCycles(){
+		return totalCycles;
+	}
     void setRefreshFunc(void (* func)(void *), void *data);
 
     void init();
@@ -84,6 +91,7 @@ public:
     void pause();
     void resume();
     bool isRunning();
+	void dump();
 };
 
 #endif // NES_H

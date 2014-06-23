@@ -5,7 +5,6 @@
 #include "log.h"
 #include "emuthread.h"
 #define NULL 0
-
 u32 Nes::sysColorMap[]={
     RGB(0x75,0x75,0x75),RGB(0x27,0x1B,0x8F),RGB(0x00,0x00,0xAB),RGB(0x47,0x00,0x9F),
     RGB(0x8F,0x00,0x77),RGB(0xAB,0x00,0x13),RGB(0xA7,0x00,0x00),RGB(0x7F,0x0B,0x00),
@@ -29,6 +28,7 @@ Nes::Nes()
 {
     fps = 0;
     fpsLoop = 0;
+	totalCycles = 0;
 
     ppu = new PPU(this);
     cpu = new Cpu(this);
@@ -61,38 +61,104 @@ void Nes::init(){
     }
 }
 
+void Nes::_reset(){
+	totalCycles = 0;
+}
+
 void Nes::reset(){
-    if( ppu && cpu && map){
+    if( ppu && cpu && map && rom){
         thread->reset();
         control->reset();
+        rom->reset();
         cpu->reset();
         ppu->reset();
         map->reset();
+		this->_reset();
     }
 }
 
+void Nes::_dump(){
+	LOGI("nes: \n");
+	LOGI("    line: %d   cycles: %d \n", currLine, totalCycles);
+}
+
+void Nes::dump(){
+	_dump();
+	cpu->dump();
+}
+
+int d = 0, c = 0;
+int e[] = {113, 114, 114};
 void Nes::exeFrame(){
-    if(ppu->reg_ctrl2&( C2_SPVS | C2_BGVS )){
-        ppu->reg_vram_addr = ppu->reg_temp;
-    }
-    int line = 0;
+    currLine = 0;
     while(true){
-        ppu->setScanline(line);
-        cpu->run(CYCLES_SCANLINE);
-        if(line<240){
-           ppu->scanline();
-        }
-        if(line == 240){
+#if 0
+		d = cpu->run(e[c] - d);
+		if (line == 19){
+			ppu->vBlankEnd();
+		}
+		if(line == 20){
+			ppu->frameStart();
+			ppu->nextVRamAddr();
+		}
+		if(line>=21 && line<=260){
+			ppu->setScanline(line-21);
+			ppu->scanline();
+			ppu->nextVRamAddr();
+		}
+        if(line == 261){
             ppu->vBlankStart();
-        }
-        if(line == TOTAL_SCAMLINE-1){
-            ppu->vBlankEnd();
-            break;
+			break;
         }
         ++line;
+		c = (c+1)%2;
+#else
+#if 1
+		if (currLine == 0){
+			ppu->frameStart();
+//			ppu->nextVRamAddr();
+			ppu->scanlineStart();
+//			
+		}else if(currLine <= 240){
+			ppu->setScanline(currLine-1);
+			ppu->scanline();
+			ppu->nextVRamAddr();
+			ppu->scanlineStart();
+		}else if(currLine == 241){
+			ppu->vBlankStart();
+		}else if(currLine == 261){
+			ppu->vBlankEnd();
+		}
+
+		int g= e[c] - d;
+		d = cpu->run(g);
+		totalCycles += g+d;
+		c = (c+1)%3;
+		if(currLine == 261){
+			break;
+		}
+		++currLine;
+#else
+
+		ppu->setScanline(currLine);
+		cpu->run(CYCLES_SCANLINE);
+		if(currLine<240){
+			ppu->scanline();
+		}
+		if(currLine == 240){
+			ppu->vBlankStart();
+		}
+		if(currLine == TOTAL_SCAMLINE-1){
+			ppu->vBlankEnd();
+			break;
+		}
+		++currLine;
+#endif
+#endif
     }
+
     fpsLoop++;
-    if(fpsLoop == 40){
+    if(fpsLoop >= 40){
         getTimeMark(&fpsEnd);
         int time = diffTimeMark(fpsStart, fpsEnd);
         fps = (float)40*1000 / time;

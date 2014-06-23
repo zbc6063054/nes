@@ -54,7 +54,7 @@ void EmuThread::run(){
             int ms = diffTimeMark(start, stop);
             if(ms < 0){
                 LOGE("thread time error!\n");
-                this->stop();
+                isRunning = false;
             }
             if(TIMEPERFRAME > ms)
                 threadSleep(TIMEPERFRAME - ms);

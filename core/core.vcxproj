@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -20,12 +20,14 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
     <CLRSupport>false</CLRSupport>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -37,7 +39,10 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(SolutionDir)..\build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(TargetDir)$(ProjectName)</IntDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -64,11 +69,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\global.cpp" />
     <ClCompile Include="controller.cpp" />
     <ClCompile Include="cpu.cpp" />
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="emuthread.cpp" />
     <ClCompile Include="log.cpp" />
+    <ClCompile Include="mapper\mapper.cpp" />
+    <ClCompile Include="mapper\mapper0.cpp" />
+    <ClCompile Include="mapper\mapper1.cpp" />
+    <ClCompile Include="mapper\mapper2.cpp" />
     <ClCompile Include="memmap.cpp" />
     <ClCompile Include="memory.cpp" />
     <ClCompile Include="nes.cpp" />
@@ -78,11 +88,17 @@
     <ClCompile Include="threadutil.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\global.h" />
     <ClInclude Include="controller.h" />
     <ClInclude Include="cpu.h" />
     <ClInclude Include="debug.h" />
     <ClInclude Include="emuthread.h" />
     <ClInclude Include="log.h" />
+    <ClInclude Include="mapper\mapper.h" />
+    <ClInclude Include="mapper\mapper0.h" />
+    <ClInclude Include="mapper\mapper1.h" />
+    <ClInclude Include="mapper\mapper2.h" />
+    <ClInclude Include="mapper\mapperunit.h" />
     <ClInclude Include="memmap.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="nes.h" />

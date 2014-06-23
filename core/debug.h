@@ -3,13 +3,14 @@
 
 #include "../global.h"
 
-#define DEBUG_CPU_OPSTART
+#define DEBUG_CPU_OPSTART       debug::setLastPc(reg_pc);
 #define DEBUG_CPU_OPEND         debug::cpu_break(this);
 
 #define MAX_BREAK_POINTS        20
 
 class Cpu;
 namespace debug{
+
     void cpu_break(Cpu *cpu);
     void add_break(u16 addr);
     void remove_break(u16 addr);
@@ -20,6 +21,8 @@ namespace debug{
     void set_notify_func(void (* func)(void *), void *data);
     void break_cpu();
     int get_breakarr(u16 arr[]);
+    void setLastPc(u16 addr);
+    u16 getLastPc();
     bool isBreaked();
 }
 
