@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 #endif
     int *a = new int[100];
     SystemInit();
-    test();
+    //test();
     QApplication app(argc, argv);
     Window window;
     window.show();

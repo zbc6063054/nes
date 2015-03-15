@@ -67,6 +67,7 @@ public:
     u8 bgColor;
 
     u32 screen_mem[34*8*32*8];
+    u32 screen_mem2[34*8*32*8];
     u8 revBit[256];
     Nes *nes;
 
@@ -86,14 +87,14 @@ public:
     void renderTile(u8 index, u8 attr, u32 *pScreen, u8* pattle, u16 addr_base);
     void drawPattern(u8 attr, u32 *pScreen, u16 addr_base);
     void drawSprite(u32 *pScreen);
+	void scanlineStart();
     void drawNameTable(u32 *pScreen, u8 tableIndex);
-	void tileRenderFrame(u32 *pScreen);
+    void tileRenderFrame(u32 *pScreen);
 
-	void frameStart();
+    void frameStart();
     void vBlankStart();
     void vBlankEnd();
-	void nextVRamAddr();
-	void scanlineStart();
+    void nextVRamAddr();
 
     inline const u32* getScreenData(){
         return screen_mem;

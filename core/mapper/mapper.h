@@ -15,12 +15,6 @@ protected:
 public:
     Mapper(Nes *parent);
     virtual ~Mapper();
-    void setPrgRom(u8 *pRom){
-        pPrgRom = pRom;
-    }
-    void setChrRom(u8 *pRom){
-        pChrRom = pRom;
-    }
     void setFileHeader(const FileHeader& header){
         this->header = header;
     }
@@ -37,8 +31,6 @@ public:
 
 protected:
     Nes *nes;
-    u8 *pPrgRom;
-    u8 *pChrRom;
     FileHeader header;
 };
 

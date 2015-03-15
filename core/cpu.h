@@ -131,8 +131,8 @@ public:
 private:
     inline u8 readByte(u16 addr){
 		u8 byte = nes->readByte(addr);
-		extern bool boutput;
-		if(addr == 0x4016 && byte == 0x41) boutput = true;
+//		extern bool boutput;
+//		if(addr == 0x4016 && byte == 0x41) boutput = true;
         return byte;
     }
     inline void writeByte(u16 addr, u8 byte){

@@ -5,6 +5,7 @@ CONFIG += staticlib
 #CONFIG += debug
 
 SOURCES += \
+    ../global.cpp \
     ../core/ppu.cpp \
     ../core/memory.cpp \
     ../core/cpu.cpp \
@@ -21,6 +22,7 @@ SOURCES += \
     ../core/mapper/mapper0.cpp \
     ../core/mapper/mapper1.cpp \
     ../core/mapper/mapper2.cpp \
+    ../core/mapper/mapper4.cpp \
     ../core/asm.cpp
 
 HEADERS += \
@@ -42,5 +44,6 @@ HEADERS += \
     ../core/mapper/mapperunit.h \
     ../core/mapper/mapper1.h \
     ../core/mapper/mapper2.h \
+    ../core/mapper/mapper4.h \
     ../core/asm.h
 

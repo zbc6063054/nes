@@ -5,8 +5,8 @@
 #include "memory.h"
 
 typedef struct struct_file_header{
-    int rom_prg_num;
-    int rom_chr_num;
+    int rom_prg_num;        //16k size prg bank
+    int rom_chr_num;        //8k size chr bank
     NtMirrorType mirror_type;
     bool battary_backed;
     bool have_trainer;

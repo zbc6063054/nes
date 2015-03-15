@@ -75,9 +75,9 @@ int Rom::readFile(const char *file){
 
     set_nt_mirror(header.mirror_type);
     mapper->setFileHeader(header);
-    mapper->setPrgRom(pPrgRom);
-    mapper->setChrRom(pChrRom);
-    mapper->reset();
+
+    pPRG = pPrgRom;
+    pCHR = pChrRom;
 
     isLoadFile = true;
     fclose(fp);

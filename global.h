@@ -18,6 +18,8 @@ typedef unsigned char BYTE;
 #define NES_ERROR_UNSUPPORTMAPPER 3
 #define NES_ERROR_LOADFILE 4
 
+#define LEN(x) (sizeof(x)/sizeof(x[0]))
+
 #define BIT(b, x) (((b) & (1<<(x))) > 0)
 
 const char* GetErrorString(int error_code);

@@ -113,7 +113,7 @@ int Cpu::run(int cycle_req){
 		isWrapAdd = isWrap = false;
 		opcode = op_read_byte();
 
-		if(boutput) printf("%04X%02X ", reg_pc-1, opcode);
+//		if(boutput) printf("%04X%02X ", reg_pc-1, opcode);
 
         exec(opcode);
 		cycles += isWrap&&WrapTable[opcode] ? CycTable[opcode]+1 : CycTable[opcode];

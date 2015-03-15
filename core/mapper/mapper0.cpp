@@ -12,17 +12,15 @@ Mapper0::~Mapper0(){
 }
 
 void Mapper0::reset(){
+    set_prg_block(0, 16, 0);
     if(header.rom_prg_num == 1){
-        prg_rom[1] = prg_rom[0] = pPrgRom;
+        set_prg_block(16, 16, 0);
     }else{
-        prg_rom[0] = pPrgRom;
-        prg_rom[1] = pPrgRom + 0x4000;
+        set_prg_block(16, 16, 16);
     }
-    chr_rom[0] = pChrRom;
-    chr_rom[1] = pChrRom + 0x1000;
 
-    set_ppu_block(0, 4, chr_rom[0]);
-    set_ppu_block(4, 4, chr_rom[1]);
+    set_ppu_block(0, 4, 0);
+    set_ppu_block(4, 4, 4);
 }
 
 void Mapper0::writeByte(u16 addr, u8 byte){

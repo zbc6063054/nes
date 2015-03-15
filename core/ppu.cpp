@@ -75,6 +75,7 @@ void PPU::reset(){
 	currentLine = 0;
 	bgColor = BGCOLOR_BALCK;
 	memset(screen_mem, 0, sizeof(screen_mem));
+    memset(screen_mem2, 0, sizeof(screen_mem2));
 }
 
 u8 PPU::readReg(u16 addr){

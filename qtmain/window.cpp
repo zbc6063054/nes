@@ -2,6 +2,7 @@
 #include <QtGui>
 #include <QFileDialog>
 #include <QMenuBar>
+#include <QMessageBox>
 #include "widget.h"
 #include "window.h"
 #include "paletteview.h"
@@ -11,6 +12,7 @@
 #include "patternview.h"
 #include "spriteview.h"
 #include "nametableview.h"
+#include "../global.h"
 
 extern Nes nes;
 
@@ -106,7 +108,12 @@ void Window::fileOpen(){
                                  NULL, tr("nes file (*.nes)"));
     if( !file.isNull() ){
         nes.stop();
-        nes.loadFile((const char *)file.toLocal8Bit());
+        int ret = nes.loadFile((const char *)file.toLocal8Bit());
+        if (ret != NES_ERROR_OK){
+            QString info(GetErrorString(ret));
+            QMessageBox::information(this, "Information", info);
+            return;
+        }
         nes.reset();
         nes.start();
     }
